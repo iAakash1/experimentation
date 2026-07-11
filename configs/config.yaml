@@ -23,6 +23,8 @@ project:
 # Compose the domain configs (resolved relative to this file's directory).
 includes:
   - paths.yaml
+  - audit.yaml
+  - normalization.yaml
   - generation.yaml
   - validation.yaml
   - training.yaml

@@ -57,6 +57,8 @@ class PathsConfig(BaseModel):
     artifact_root: str = "artifacts"
     artifacts: dict[str, str]
     outputs: dict[str, str] = Field(default_factory=dict)
+    reports_dir: str = "reports"  # audit report output directory (Milestone 2)
+    processed_dir: str = "datasets"  # normalized dataset output directory (Milestone 2.1)
 
 
 class AntiDomination(BaseModel):
@@ -132,6 +134,41 @@ class TrainingConfig(BaseModel):
     models: dict[str, dict[str, object]] = Field(default_factory=dict)
 
 
+class AuditConfig(BaseModel):
+    """Dataset audit engine settings (``configs/audit.yaml``; Milestone 2)."""
+
+    model_config = _Frozen
+    workers: int = 8  # thread-pool size for image inspection (I/O bound)
+    supported_extensions: list[str] = Field(
+        default_factory=lambda: [
+            ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff", ".webp",
+        ]
+    )
+    near_duplicates: bool = False  # perceptual (average-hash) near-dup detection; decodes images
+    ahash_size: int = 8  # average-hash grid (NxN); 8 => 64-bit hash
+    imbalance_warn_ratio: float = 10.0  # flag imbalance when max/min class count exceeds this
+
+
+class SourceSpec(BaseModel):
+    """One dataset's normalization source: metadata + raw->canonical class map."""
+
+    model_config = _Frozen
+    dataset: str
+    license: str = ""
+    citation: str = ""
+    url: str = ""
+    class_map: dict[str, str]  # raw folder name -> canonical class name
+
+
+class NormalizationConfig(BaseModel):
+    """Dataset normalization settings (``configs/normalization.yaml``; Milestone 2.1)."""
+
+    model_config = _Frozen
+    mode: str = "copy"  # copy | link
+    disambiguate_on_collision: bool = True
+    sources: dict[str, SourceSpec] = Field(default_factory=dict)
+
+
 class PlantDxConfig(BaseModel):
     """The fully-merged, validated PlantDx configuration."""
 
@@ -140,6 +177,8 @@ class PlantDxConfig(BaseModel):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     reproducibility: ReproducibilityConfig = Field(default_factory=ReproducibilityConfig)
     paths: PathsConfig
+    audit: AuditConfig = Field(default_factory=AuditConfig)
+    normalization: NormalizationConfig = Field(default_factory=NormalizationConfig)
     generation: GenerationConfig = Field(default_factory=GenerationConfig)
     dedup: DedupConfig = Field(default_factory=DedupConfig)
     diversity_gates: dict[str, float] = Field(default_factory=dict)

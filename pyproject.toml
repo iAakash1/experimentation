@@ -40,6 +40,7 @@ dependencies = [
     "pyyaml>=6.0",
     "pydantic>=2.6",
     "rich>=13.7",
+    "pillow>=10.2",          # dataset audit engine (image metadata, hashing)
 ]
 
 [project.optional-dependencies]
@@ -59,7 +60,6 @@ nlp = [
 train = [
     "mlx>=0.15",
     "mlx-vlm>=0.1.0",
-    "pillow>=10.2",
 ]
 # Developer tooling.
 dev = [

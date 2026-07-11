@@ -24,6 +24,13 @@ mango/raw/**
 checkpoints/
 adapters/
 
+# --- Dataset audit reports (generated; regenerable via `plantdx audit`) ---
+reports/
+
+# --- Normalized datasets (generated; regenerable via `plantdx normalize`) ---
+# Anchored to the repo root so it does not match artifacts/datasets/.
+/datasets/
+
 # --- Python ---
 __pycache__/
 *.py[cod]

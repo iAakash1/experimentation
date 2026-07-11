@@ -8,10 +8,29 @@ reviewable body of work; scope PRs to a single milestone.
 - **Acceptance:** `make check` green; every module imports; CLI surface parses;
   registries complete; stubs raise `NotImplementedError`. No pipeline logic.
 
-## M2 — Ontology + Vocabulary + Symptom Lexicon (DKB → ontology)
+## M2 — Dataset Audit Engine ✅ (implemented)
+- CPU-only audit that inventories the configured datasets and writes a
+  reproducibility report (`reports/`). See [AUDIT.md](AUDIT.md). Also implemented
+  the M2-tagged infrastructure it depends on: config loader, `utils.io`,
+  `utils.hashing`, `utils.logging`.
+- **Acceptance:** `plantdx audit` runs on CPU and emits `dataset_card.md`,
+  per-dataset summaries, CSVs, and a deterministic `audit_manifest.json`; unit
+  tests cover discovery, corrupt handling, duplicates, checksum determinism, and
+  report generation.
+
+## M2.1 — Dataset Normalization Engine ✅ (implemented)
+- CPU-only, filesystem-only. Copies the tomato + mango classes from the immutable
+  raw datasets into `datasets/<crop>/processed/<canonical_class>/`, with a class
+  map, manifest, dataset card, and combined run report. See [NORMALIZATION.md](NORMALIZATION.md).
+- **Acceptance:** `plantdx normalize` extracts only mapped classes, normalizes names,
+  merges train/val (preserving split in the manifest), verifies every copied file's
+  checksum, and never modifies `raw/`. Unit tests cover layout detection, extraction,
+  dedup/collision, checksum verification, and report generation.
+
+## M2b — Ontology + Vocabulary + Symptom Lexicon (DKB → ontology)
 - Implement `DKBLoader`, `OntologyBuilder` (A), `VocabularyBuilder` (B),
   `SymptomLexiconBuilder` (C), and the derivation rules (doc 01 §3.2), overrides
-  (doc 01 §6), and self-checks (doc 01 §8). Config loader + hashing + io.
+  (doc 01 §6), and self-checks (doc 01 §8).
 - **Acceptance:** ontology is a pure projection of the DKB (every vocab value
   traces to a DKB field); build self-checks pass for all 18 classes; unit tests
   for each derivation rule; `test_ontology_is_pure_projection_of_dkb` unskipped.

@@ -6,6 +6,38 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added — Milestone 2.1: Dataset Normalization Engine (CPU-only, filesystem)
+- `src/plantdx/normalization/` — copies the tomato + mango classes from the immutable
+  raw datasets into `datasets/<crop>/processed/<canonical_class>/`; structure-agnostic
+  layout detection (flat and train/val), canonical class naming, SHA-256 verification,
+  duplicate/collision handling, and writers for `class_mapping.json`, `manifest.json`,
+  `dataset_card.md`, and a combined `normalization_report.json`. Entry point
+  `plantdx.normalization.run_normalization`.
+- `plantdx normalize` CLI command (and `python -m plantdx normalize`).
+- `configs/normalization.yaml` (+ `NormalizationConfig`, `SourceSpec`, `paths.processed_dir`);
+  wired into `config.yaml` includes.
+- Tests under `tests/unit/normalization/` (layout detection, extraction, dedup/collision,
+  checksum verification, raw immutability, report generation). Docs: `docs/NORMALIZATION.md`.
+- `.gitignore`: `/datasets/` (generated normalized output).
+
+### Added — Milestone 2: Dataset Audit Engine (CPU-only)
+- `src/plantdx/audit/` — image discovery, metadata inspection (Pillow, no full decode),
+  SHA-256 hashing, exact + optional average-hash near-duplicate detection, folder
+  validation, per-dataset summaries, deterministic checksums, and report writers
+  (CSV/JSON/Markdown + manifest + log). Entry point `plantdx.audit.run_audit`.
+- `plantdx audit` CLI command (and `python -m plantdx audit`).
+- `configs/audit.yaml` (+ `AuditConfig`, `paths.reports_dir`); wired into `config.yaml` includes.
+- Implemented the M2 infrastructure the audit depends on: config loader
+  (`config/loader.py`), `utils/io.py`, `utils/hashing.py`, `utils/logging.py`.
+- Tests under `tests/unit/audit/` (discovery, corrupt handling, duplicates, checksum
+  determinism, report/JSON/CSV/manifest generation). Docs: `docs/AUDIT.md`.
+
+### Changed
+- `configs/paths.yaml` nested under a top-level `paths:` key so the loader maps it to
+  `PlantDxConfig.paths` (consistent with the other included config files).
+- Pillow moved from the `train` extra to a core runtime dependency (needed by the audit).
+- `reports/` added to `.gitignore` (generated audit output).
+
 ### Changed — post-review simplification (no methodology change)
 - Removed `core/interfaces.py` (unused generic Protocols that duplicated the concrete ABCs).
 - Refactored `core/seeding.py` from a `SeedDeriver` class to pure module-level functions

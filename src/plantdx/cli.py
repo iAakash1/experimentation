@@ -8,6 +8,8 @@ which :func:`main` renders as a clean message rather than a traceback.
 Usage:
     plantdx --help
     plantdx --version
+    plantdx audit            --config configs/config.yaml   [--dataset tomato|mango|all] [--reports-dir DIR]
+    plantdx normalize        --config configs/config.yaml   [--dataset tomato|mango|all] [--mode copy|link]
     plantdx ontology build   --config configs/config.yaml
     plantdx vocabulary build --config configs/config.yaml
     plantdx generate         --config configs/config.yaml
@@ -57,6 +59,35 @@ def build_parser() -> argparse.ArgumentParser:
     def _add_config(p: argparse.ArgumentParser) -> None:
         p.add_argument("--config", default="configs/config.yaml", help="Path to config.yaml")
 
+    # audit (Milestone 2 — implemented)
+    p_audit = sub.add_parser(
+        "audit", help="Audit the datasets and write reproducibility reports (CPU-only)"
+    )
+    _add_config(p_audit)
+    p_audit.add_argument(
+        "--dataset", default="all",
+        help="Dataset to audit: a config key (e.g. tomato, mango) or 'all' (default)",
+    )
+    p_audit.add_argument(
+        "--reports-dir", default=None,
+        help="Override the reports output directory (default: paths.reports_dir)",
+    )
+
+    # normalize (Milestone 2.1 — implemented)
+    p_norm = sub.add_parser(
+        "normalize",
+        help="Normalize raw datasets into the canonical datasets/ structure (CPU-only)",
+    )
+    _add_config(p_norm)
+    p_norm.add_argument(
+        "--dataset", default="all",
+        help="Dataset to normalize: a config key (e.g. tomato, mango) or 'all' (default)",
+    )
+    p_norm.add_argument(
+        "--mode", default=None, choices=["copy", "link"],
+        help="Override the placement mode (default: normalization.mode)",
+    )
+
     # ontology build
     p_onto = sub.add_parser("ontology", help="Build the caption ontology (M2)")
     onto_sub = p_onto.add_subparsers(dest="subcommand", metavar="<subcommand>")
@@ -93,6 +124,80 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _run_audit(args: argparse.Namespace) -> int:
+    """Handle ``plantdx audit`` (Milestone 2). Returns a process exit code."""
+    from pathlib import Path
+
+    from plantdx.__about__ import __version__
+    from plantdx.audit import build_specs, run_audit
+    from plantdx.config import config_hash, load_config
+    from plantdx.core.exceptions import PlantDxError
+
+    try:
+        config = load_config(args.config)
+    except PlantDxError as exc:
+        print(f"plantdx audit: {exc}", file=sys.stderr)
+        return 1
+
+    specs = build_specs(config, base_dir=Path.cwd())
+    if args.dataset != "all":
+        specs = [spec for spec in specs if spec.key == args.dataset]
+        if not specs:
+            available = ", ".join(sorted(config.paths.datasets)) + ", all"
+            print(f"plantdx audit: unknown dataset '{args.dataset}'. Available: {available}",
+                  file=sys.stderr)
+            return 1
+
+    reports_dir = Path(args.reports_dir) if args.reports_dir else Path(config.paths.reports_dir)
+    manifest = run_audit(
+        specs, config.audit, reports_dir,
+        plantdx_version=__version__, config_hash=config_hash(config),
+    )
+    print(f"Audit complete: {manifest.totals['images']} images across "
+          f"{len(manifest.datasets)} dataset(s). Reports in {reports_dir}/")
+    print(f"Audit checksum: {manifest.audit_checksum}")
+    return 0
+
+
+def _run_normalize(args: argparse.Namespace) -> int:
+    """Handle ``plantdx normalize`` (Milestone 2.1). Returns a process exit code."""
+    from pathlib import Path
+
+    from plantdx.__about__ import __version__
+    from plantdx.config import config_hash, load_config
+    from plantdx.core.exceptions import PlantDxError
+    from plantdx.normalization import run_normalization
+
+    try:
+        config = load_config(args.config)
+    except PlantDxError as exc:
+        print(f"plantdx normalize: {exc}", file=sys.stderr)
+        return 1
+
+    available = list(config.normalization.sources)
+    crops = None if args.dataset == "all" else [args.dataset]
+    if crops and args.dataset not in available:
+        print(f"plantdx normalize: unknown dataset '{args.dataset}'. "
+              f"Available: {', '.join(available)}, all", file=sys.stderr)
+        return 1
+
+    reports = run_normalization(
+        config, base_dir=Path.cwd(), crops=crops, mode=args.mode,
+        plantdx_version=__version__, config_hash=config_hash(config),
+    )
+    total_images = sum(r.image_count for r in reports.values())
+    failures = sum(len(r.checksum_failures) for r in reports.values())
+    print(f"Normalization complete: {total_images} images across {len(reports)} crop(s) "
+          f"into {config.paths.processed_dir}/")
+    for crop, report in reports.items():
+        print(f"  {crop}: {report.image_count} images, {report.class_count} classes, "
+              f"checksum {report.dataset_checksum[:12]}")
+    if failures:
+        print(f"WARNING: {failures} checksum verification failure(s).", file=sys.stderr)
+        return 1
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point. Returns a process exit code."""
     parser = build_parser()
@@ -101,6 +206,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command is None:
         parser.print_help()
         return 0
+
+    if args.command == "audit":
+        return _run_audit(args)
+    if args.command == "normalize":
+        return _run_normalize(args)
 
     try:
         _not_implemented(args.command)
