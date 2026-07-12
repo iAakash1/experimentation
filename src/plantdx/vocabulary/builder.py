@@ -27,6 +27,7 @@ class VocabularyBuilder:
         ontology: Ontology,
         assets: dict[str, str],
     ) -> None:
+        """Initialize the builder with the DKB, ontology, and asset file paths."""
         self.kb = knowledge_base
         self.ontology = ontology
         self.assets = assets

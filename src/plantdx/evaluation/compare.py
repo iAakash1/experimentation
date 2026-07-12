@@ -16,6 +16,7 @@ class ComparisonReporter:
     """Builds the cross-model, zero-shot-vs-fine-tuned comparison report."""
 
     def __init__(self, report_dir: str | Path) -> None:
+        """Initialize the reporter with the output directory for the comparison report."""
         self.report_dir = Path(report_dir)
 
     def build(self, models: Sequence[TargetModel]) -> Path:

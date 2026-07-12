@@ -10,4 +10,4 @@ from __future__ import annotations
 from plantdx.config.loader import config_hash, load_config
 from plantdx.config.schema import PlantDxConfig
 
-__all__ = ["load_config", "config_hash", "PlantDxConfig"]
+__all__ = ["PlantDxConfig", "config_hash", "load_config"]

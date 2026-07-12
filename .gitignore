@@ -74,3 +74,8 @@ docs/_build/
 .env
 .env.*
 !.env.example
+
+# --- AI-assistant local engineering memory (never committed) ---
+# PROJECT_CONTEXT.md is the short, committed, human-facing overview and is
+# intentionally NOT listed here.
+CLAUDE.md

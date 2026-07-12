@@ -23,13 +23,13 @@ from plantdx.ontology.domain.models import Ontology
 from plantdx.utils.io import ensure_dir
 
 __all__ = [
-    "CompileResult",
-    "compile_ontology",
-    "validate_ontology",
-    "compute_statistics",
-    "write_artifacts",
     "ARTIFACT_NAMES",
+    "CompileResult",
     "Ontology",
+    "compile_ontology",
+    "compute_statistics",
+    "validate_ontology",
+    "write_artifacts",
 ]
 
 ARTIFACT_NAMES = (
@@ -70,7 +70,9 @@ def compute_statistics(result: CompileResult, validation_status: str) -> dict[st
     return statistics.compute(result.ontology, result.dkb, validation_status)
 
 
-def write_artifacts(result: CompileResult, out_dir: str | Path, stats: dict[str, Any]) -> list[Path]:
+def write_artifacts(
+    result: CompileResult, out_dir: str | Path, stats: dict[str, Any]
+) -> list[Path]:
     """Write all six artifacts deterministically. Returns the written paths."""
     out = ensure_dir(out_dir)
     ontology = result.ontology
@@ -82,10 +84,14 @@ def write_artifacts(result: CompileResult, out_dir: str | Path, stats: dict[str,
         written.append(path)
 
     _write("ontology.json", serialization.canonical_json(serialization.ontology_document(ontology)))
-    _write("concept_graph.json",
-           serialization.canonical_json(serialization.concept_graph_document(ontology)))
-    _write("concept_index.json",
-           serialization.canonical_json(serialization.concept_index_document(ontology)))
+    _write(
+        "concept_graph.json",
+        serialization.canonical_json(serialization.concept_graph_document(ontology)),
+    )
+    _write(
+        "concept_index.json",
+        serialization.canonical_json(serialization.concept_index_document(ontology)),
+    )
     _write("ontology_statistics.json", serialization.canonical_json(stats))
     _write("ontology_checksum.txt", checksum.content_hash(ontology) + "\n")
     _write("ontology_build.log", "\n".join(result.log) + "\n")

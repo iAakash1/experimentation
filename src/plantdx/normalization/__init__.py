@@ -10,4 +10,4 @@ from __future__ import annotations
 from plantdx.normalization.engine import normalize_crop, run_normalization
 from plantdx.normalization.models import CropReport, NormalizedImage
 
-__all__ = ["run_normalization", "normalize_crop", "CropReport", "NormalizedImage"]
+__all__ = ["CropReport", "NormalizedImage", "normalize_crop", "run_normalization"]

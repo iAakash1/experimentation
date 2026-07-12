@@ -7,8 +7,8 @@ from plantdx.evaluation.metrics import caption_metrics, classification_metrics
 from plantdx.evaluation.zero_shot import ZeroShotEvaluator
 
 __all__ = [
-    "ZeroShotEvaluator",
     "ComparisonReporter",
-    "classification_metrics",
+    "ZeroShotEvaluator",
     "caption_metrics",
+    "classification_metrics",
 ]

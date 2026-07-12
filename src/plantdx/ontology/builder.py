@@ -30,6 +30,7 @@ class OntologyBuilder:
         concept_schema: ConceptSchema,
         overrides_dir: str | Path | None = None,
     ) -> None:
+        """Initialize the builder with the DKB, concept schema, and optional overrides."""
         self.kb = knowledge_base
         self.concept_schema = concept_schema
         self.overrides_dir = Path(overrides_dir) if overrides_dir else None

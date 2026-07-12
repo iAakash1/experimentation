@@ -10,7 +10,7 @@ import pytest
 
 # Allow `import _dataset` from this directory regardless of the runner's CWD.
 sys.path.insert(0, str(Path(__file__).parent))
-from _dataset import build_sample_dataset  # noqa: E402
+from _dataset import build_sample_dataset
 
 
 @pytest.fixture

@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from _dkb import minimal_dkb
-from plantdx.ontology.domain import builder, policies as P, serialization
+
+from plantdx.ontology.domain import builder, policies, serialization
 from plantdx.ontology.domain.builder import load_dkb, validate_dkb
 
 
@@ -29,11 +29,11 @@ def test_load_and_validate_dkb(tmp_path) -> None:
 
 @pytest.mark.unit
 def test_concept_hierarchy_inheritance() -> None:
-    assert P.is_subtype("Disease", "Condition")
-    assert P.is_subtype("Bacterium", "Pathogen")
-    assert P.is_subtype("Bacterium", "CausalAgent")
-    assert not P.is_subtype("Disease", "Pathogen")
-    assert P.ancestors("Bacterium")[-1] == "Entity"  # every chain roots at Entity
+    assert policies.is_subtype("Disease", "Condition")
+    assert policies.is_subtype("Bacterium", "Pathogen")
+    assert policies.is_subtype("Bacterium", "CausalAgent")
+    assert not policies.is_subtype("Disease", "Pathogen")
+    assert policies.ancestors("Bacterium")[-1] == "Entity"  # every chain roots at Entity
 
 
 @pytest.mark.unit
@@ -55,8 +55,9 @@ def test_graph_generation() -> None:
 def test_shared_value_node_is_reused() -> None:
     _dkb, ontology = _compile()
     # color:brown is a single node referenced by both fungal diseases (a real graph)
-    brown_sources = {e.source for e in ontology.edges
-                     if e.type == "has_color" and e.target == "color:brown"}
+    brown_sources = {
+        e.source for e in ontology.edges if e.type == "has_color" and e.target == "color:brown"
+    }
     assert "condition:tomato_test_blight" in brown_sources
     assert "condition:tomato_test_spot" in brown_sources
 
@@ -93,7 +94,10 @@ def test_node_and_property_ordering_is_sorted() -> None:
 @pytest.mark.unit
 def test_serialization_roundtrips() -> None:
     _dkb, ontology = _compile()
-    for doc_fn in (serialization.ontology_document, serialization.concept_graph_document,
-                   serialization.concept_index_document):
+    for doc_fn in (
+        serialization.ontology_document,
+        serialization.concept_graph_document,
+        serialization.concept_index_document,
+    ):
         parsed = json.loads(serialization.canonical_json(doc_fn(ontology)))
         assert isinstance(parsed, dict) and parsed

@@ -24,9 +24,9 @@ class ClassificationMetrics:
 class CaptionMetrics:
     """Knowledge-grounded caption-quality metrics."""
 
-    grounding_precision: float   # fraction of stated signs licensed by the DKB
-    forbidden_term_rate: float   # fraction of captions containing a forbidden term
-    concept_recall: float        # fraction of required concepts mentioned
+    grounding_precision: float  # fraction of stated signs licensed by the DKB
+    forbidden_term_rate: float  # fraction of captions containing a forbidden term
+    concept_recall: float  # fraction of required concepts mentioned
 
 
 def classification_metrics(

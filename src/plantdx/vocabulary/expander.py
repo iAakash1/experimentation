@@ -29,6 +29,7 @@ class VocabularyExpander:
     """
 
     def __init__(self, vocabulary: VocabularyBundle, max_adjectives: int = 3) -> None:
+        """Initialize the expander with the vocabulary bundle and modifier-depth cap."""
         self.vocabulary = vocabulary
         self.max_adjectives = max_adjectives
 

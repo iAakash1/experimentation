@@ -53,8 +53,12 @@ def _inspect_all(
     def inspect(item: tuple[Path, str]) -> ImageRecord:
         path, class_name = item
         return images.inspect_image(
-            path, dataset_key, class_name, root,
-            compute_ahash=settings.near_duplicates, ahash_size=settings.ahash_size,
+            path,
+            dataset_key,
+            class_name,
+            root,
+            compute_ahash=settings.near_duplicates,
+            ahash_size=settings.ahash_size,
         )
 
     if settings.workers > 1 and len(image_items) > 1:
@@ -71,20 +75,37 @@ def _dataset_checksum(records: list[ImageRecord]) -> str:
 
 def _audit_dataset(
     spec: DatasetSpec, settings: AuditConfig, log: Logger
-) -> tuple[DatasetReport, list[ImageRecord], list[tuple[str, list[str]]], list[tuple[str, list[str]]]]:
+) -> tuple[
+    DatasetReport, list[ImageRecord], list[tuple[str, list[str]]], list[tuple[str, list[str]]]
+]:
     """Audit one dataset; return its report, records, and duplicate groups."""
     issues: list[Issue] = []
 
     if not spec.root.exists():
         log.warning("[%s] dataset root missing: %s", spec.key, spec.root)
-        issues.append(Issue(spec.key, "missing_root", f"root does not exist: {spec.root}", str(spec.root)))
+        issues.append(
+            Issue(spec.key, "missing_root", f"root does not exist: {spec.root}", str(spec.root))
+        )
         empty_report = DatasetReport(
-            key=spec.key, name=spec.name, root=str(spec.root), exists=False,
-            num_images=0, num_ok=0, num_corrupt=0, num_unsupported=0, num_classes=0,
-            configured_classes=spec.configured_classes, class_counts={},
-            width=None, height=None, aspect_ratio=None, imbalance_ratio=None,
-            num_exact_duplicate_groups=0, num_near_duplicate_groups=0,
-            dataset_checksum=sha256_hex(""), issues=issues,
+            key=spec.key,
+            name=spec.name,
+            root=str(spec.root),
+            exists=False,
+            num_images=0,
+            num_ok=0,
+            num_corrupt=0,
+            num_unsupported=0,
+            num_classes=0,
+            configured_classes=spec.configured_classes,
+            class_counts={},
+            width=None,
+            height=None,
+            aspect_ratio=None,
+            imbalance_ratio=None,
+            num_exact_duplicate_groups=0,
+            num_near_duplicate_groups=0,
+            dataset_checksum=sha256_hex(""),
+            issues=issues,
         )
         return empty_report, [], [], []
 
@@ -92,14 +113,32 @@ def _audit_dataset(
     empty_dirs, unexpected_dirs = discovery.find_dir_issues(spec.root)
 
     for path in unsupported:
-        issues.append(Issue(spec.key, "unsupported_file", "unsupported file type",
-                            str(path.relative_to(spec.root))))
+        issues.append(
+            Issue(
+                spec.key,
+                "unsupported_file",
+                "unsupported file type",
+                str(path.relative_to(spec.root)),
+            )
+        )
     for directory in empty_dirs:
-        issues.append(Issue(spec.key, "empty_folder", "folder has no visible contents",
-                            str(directory.relative_to(spec.root))))
+        issues.append(
+            Issue(
+                spec.key,
+                "empty_folder",
+                "folder has no visible contents",
+                str(directory.relative_to(spec.root)),
+            )
+        )
     for directory in unexpected_dirs:
-        issues.append(Issue(spec.key, "unexpected_folder", "hidden/system folder",
-                            str(directory.relative_to(spec.root))))
+        issues.append(
+            Issue(
+                spec.key,
+                "unexpected_folder",
+                "hidden/system folder",
+                str(directory.relative_to(spec.root)),
+            )
+        )
     if not image_items:
         issues.append(Issue(spec.key, "empty_dataset", "no supported images found", str(spec.root)))
 
@@ -108,15 +147,20 @@ def _audit_dataset(
 
     corrupt = [r for r in records if not r.ok]
     for record in corrupt:
-        issues.append(Issue(spec.key, "corrupt_image", record.error or "unreadable", record.relpath))
+        issues.append(
+            Issue(spec.key, "corrupt_image", record.error or "unreadable", record.relpath)
+        )
 
     class_counts = dict(sorted(Counter(r.class_name for r in records).items()))
     num_classes = len(class_counts)
     if spec.configured_classes is not None and num_classes != spec.configured_classes:
-        issues.append(Issue(
-            spec.key, "class_count_mismatch",
-            f"discovered {num_classes} classes; config expects {spec.configured_classes}",
-        ))
+        issues.append(
+            Issue(
+                spec.key,
+                "class_count_mismatch",
+                f"discovered {num_classes} classes; config expects {spec.configured_classes}",
+            )
+        )
 
     readable = [r for r in records if r.ok]
     width = Stats.of(r.width for r in readable if r.width is not None)
@@ -135,13 +179,25 @@ def _audit_dataset(
     near = duplicates.near_duplicate_groups(records) if settings.near_duplicates else []
 
     dataset_report = DatasetReport(
-        key=spec.key, name=spec.name, root=str(spec.root), exists=True,
-        num_images=len(records), num_ok=len(readable), num_corrupt=len(corrupt),
-        num_unsupported=len(unsupported), num_classes=num_classes,
-        configured_classes=spec.configured_classes, class_counts=class_counts,
-        width=width, height=height, aspect_ratio=aspect, imbalance_ratio=imbalance,
-        num_exact_duplicate_groups=len(exact), num_near_duplicate_groups=len(near),
-        dataset_checksum=_dataset_checksum(records), issues=issues,
+        key=spec.key,
+        name=spec.name,
+        root=str(spec.root),
+        exists=True,
+        num_images=len(records),
+        num_ok=len(readable),
+        num_corrupt=len(corrupt),
+        num_unsupported=len(unsupported),
+        num_classes=num_classes,
+        configured_classes=spec.configured_classes,
+        class_counts=class_counts,
+        width=width,
+        height=height,
+        aspect_ratio=aspect,
+        imbalance_ratio=imbalance,
+        num_exact_duplicate_groups=len(exact),
+        num_near_duplicate_groups=len(near),
+        dataset_checksum=_dataset_checksum(records),
+        issues=issues,
     )
     return dataset_report, records, exact, near
 
@@ -189,8 +245,11 @@ def run_audit(
         report.write_dataset_summary_json(reports / f"{spec.key}_summary.json", dataset_report)
         logger.info(
             "[%s] %d images · %d classes · %d corrupt · %d exact-dup groups · checksum=%s",
-            spec.key, dataset_report.num_images, dataset_report.num_classes,
-            dataset_report.num_corrupt, dataset_report.num_exact_duplicate_groups,
+            spec.key,
+            dataset_report.num_images,
+            dataset_report.num_classes,
+            dataset_report.num_corrupt,
+            dataset_report.num_exact_duplicate_groups,
             dataset_report.dataset_checksum[:12],
         )
 
@@ -213,9 +272,14 @@ def run_audit(
     }
     manifest = AuditManifest(
         generated_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        plantdx_version=plantdx_version, config_hash=config_hash, tool="plantdx.audit",
-        settings=settings.model_dump(), datasets=checksums, audit_checksum=audit_checksum,
-        totals=totals, splits=_SPLIT_STATUS,
+        plantdx_version=plantdx_version,
+        config_hash=config_hash,
+        tool="plantdx.audit",
+        settings=settings.model_dump(),
+        datasets=checksums,
+        audit_checksum=audit_checksum,
+        totals=totals,
+        splits=_SPLIT_STATUS,
     )
     report.write_audit_manifest_json(reports / "audit_manifest.json", manifest)
     report.write_dataset_card_md(reports / "dataset_card.md", dataset_reports, manifest)

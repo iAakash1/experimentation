@@ -9,4 +9,4 @@ from plantdx.ontology.builder import OntologyBuilder
 from plantdx.ontology.concept_schema import ConceptSchemaLoader
 from plantdx.ontology.models import Ontology
 
-__all__ = ["OntologyBuilder", "ConceptSchemaLoader", "Ontology"]
+__all__ = ["ConceptSchemaLoader", "Ontology", "OntologyBuilder"]

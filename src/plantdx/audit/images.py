@@ -59,8 +59,15 @@ def inspect_image(
     try:
         data = path.read_bytes()
     except OSError as exc:
-        return ImageRecord(dataset, class_name, relpath, ok=False, file_size=0, sha256="",
-                           error=f"unreadable: {exc}")
+        return ImageRecord(
+            dataset,
+            class_name,
+            relpath,
+            ok=False,
+            file_size=0,
+            sha256="",
+            error=f"unreadable: {exc}",
+        )
 
     sha = sha256_bytes(data)
     file_size = len(data)
@@ -71,16 +78,34 @@ def inspect_image(
             mode, fmt = image.mode, image.format
         with Image.open(io.BytesIO(data)) as image:
             image.verify()  # integrity check without a full decode
-    except Exception as exc:  # noqa: BLE001 - one bad image must never crash the audit
-        return ImageRecord(dataset, class_name, relpath, ok=False, file_size=file_size,
-                           sha256=sha, error=f"corrupt: {type(exc).__name__}: {exc}")
+    except Exception as exc:
+        return ImageRecord(
+            dataset,
+            class_name,
+            relpath,
+            ok=False,
+            file_size=file_size,
+            sha256=sha,
+            error=f"corrupt: {type(exc).__name__}: {exc}",
+        )
 
     ahash: str | None = None
     if compute_ahash:
         try:
             ahash = average_hash(data, ahash_size)
-        except Exception:  # noqa: BLE001 - a failed aHash must not fail the image
+        except Exception:
             ahash = None
 
-    return ImageRecord(dataset, class_name, relpath, ok=True, file_size=file_size, sha256=sha,
-                       width=width, height=height, mode=mode, format=fmt, ahash=ahash)
+    return ImageRecord(
+        dataset,
+        class_name,
+        relpath,
+        ok=True,
+        file_size=file_size,
+        sha256=sha,
+        width=width,
+        height=height,
+        mode=mode,
+        format=fmt,
+        ahash=ahash,
+    )

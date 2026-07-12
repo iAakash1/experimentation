@@ -22,6 +22,7 @@ class CaptionBudgetPlanner:
     """
 
     def __init__(self, config: GenerationConfig) -> None:
+        """Initialize the planner with the generation configuration."""
         self.config = config
 
     def plan(self, image_id: str, ontology: DiseaseOntology, base_seed: str) -> BudgetPlan:

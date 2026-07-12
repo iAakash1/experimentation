@@ -27,6 +27,7 @@ class MLXVLMRunner:
         dataset_dir: str | Path,
         output_dir: str | Path,
     ) -> None:
+        """Initialize the runner with the QLoRA settings and dataset/output paths."""
         self.settings = settings
         self.dataset_dir = Path(dataset_dir)
         self.output_dir = Path(output_dir)

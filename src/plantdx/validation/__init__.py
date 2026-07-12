@@ -9,4 +9,4 @@ from plantdx.validation.battery import ValidatorBattery
 from plantdx.validation.grammar import GrammarChecker
 from plantdx.validation.validators import ORDERED_VALIDATORS, BaseValidator
 
-__all__ = ["ValidatorBattery", "GrammarChecker", "BaseValidator", "ORDERED_VALIDATORS"]
+__all__ = ["ORDERED_VALIDATORS", "BaseValidator", "GrammarChecker", "ValidatorBattery"]

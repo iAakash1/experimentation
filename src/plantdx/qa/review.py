@@ -21,9 +21,9 @@ class ChecklistVerdict:
     caption_id: str
     reviewer_id: str
     accepted: bool
-    critical_items: dict[str, bool]   # A1..A6, C10
-    major_items: dict[str, bool]      # B7..B9, C11
-    minor_items: dict[str, bool]      # D12..D13
+    critical_items: dict[str, bool]  # A1..A6, C10
+    major_items: dict[str, bool]  # B7..B9, C11
+    minor_items: dict[str, bool]  # D12..D13
     notes: str | None = None
 
     def worst_defect(self) -> DefectClass | None:
@@ -35,6 +35,7 @@ class ReviewStore:
     """Loads and aggregates per-reviewer verdict files."""
 
     def __init__(self, results_dir: str | Path) -> None:
+        """Initialize the store with the reviewer results directory."""
         self.results_dir = Path(results_dir)
 
     def load(self) -> Iterable[ChecklistVerdict]:

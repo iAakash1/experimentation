@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from plantdx.core.exceptions import KnowledgeBaseError
-from plantdx.ontology.domain import checksum, policies as P
+from plantdx.ontology.domain import checksum, policies
 from plantdx.ontology.domain.graph import ConceptGraph
 from plantdx.ontology.domain.models import Edge, Ontology
 from plantdx.utils.hashing import sha256_bytes
@@ -32,6 +32,7 @@ _EVIDENCE_TYPE = {
 # DKB loading and validation
 # --------------------------------------------------------------------------- #
 
+
 def load_dkb(path: str | Path) -> dict[str, Any]:
     """Read the DKB JSON into a dict (raises KnowledgeBaseError if unreadable)."""
     path = Path(path)
@@ -39,7 +40,7 @@ def load_dkb(path: str | Path) -> dict[str, Any]:
         raise KnowledgeBaseError(f"DKB not found: {path}")
     try:
         data = read_json(path)
-    except Exception as exc:  # noqa: BLE001 - surface any parse error uniformly
+    except Exception as exc:
         raise KnowledgeBaseError(f"DKB is not valid JSON: {path}: {exc}") from exc
     if not isinstance(data, dict):
         raise KnowledgeBaseError(f"DKB root must be an object: {path}")
@@ -77,6 +78,7 @@ def validate_dkb(dkb: dict[str, Any]) -> None:
 # Build
 # --------------------------------------------------------------------------- #
 
+
 def build_ontology(dkb: dict[str, Any], dkb_sha256: str) -> tuple[Ontology, list[str]]:
     """Compile the DKB into an :class:`Ontology`; return it plus a build log."""
     graph = ConceptGraph()
@@ -99,10 +101,10 @@ def build_ontology(dkb: dict[str, Any], dkb_sha256: str) -> tuple[Ontology, list
     nodes = graph.nodes()
     edges = graph.edges()
     ontology = Ontology(
-        schema_version=P.SCHEMA_VERSION,
-        ontology_version=P.ONTOLOGY_VERSION,
-        concept_types=list(P.CONCEPT_TYPES),
-        relation_types=list(P.RELATION_TYPES),
+        schema_version=policies.SCHEMA_VERSION,
+        ontology_version=policies.ONTOLOGY_VERSION,
+        concept_types=list(policies.CONCEPT_TYPES),
+        relation_types=list(policies.RELATION_TYPES),
         nodes=nodes,
         edges=edges,
         provenance={
@@ -120,49 +122,62 @@ def build_ontology(dkb: dict[str, Any], dkb_sha256: str) -> tuple[Ontology, list
 # Phases
 # --------------------------------------------------------------------------- #
 
+
 def _instantiate_closed_vocabularies(graph: ConceptGraph) -> None:
-    for sign in P.SIGN_TYPES:
+    for sign in policies.SIGN_TYPES:
         graph.upsert_node(f"sign:{sign}", "SignType", {"canonical_label": sign})
-    for region in P.LEAF_REGIONS:
-        graph.upsert_node(f"region:{region}", "LeafRegion",
-                          {"canonical_label": region, "observable": True})
-    for part in P.NON_LEAF_PARTS:
-        graph.upsert_node(f"part:{part}", "PlantPart",
-                          {"canonical_label": part, "observable": False})
-    for stage in P.SEVERITY_STAGES:
+    for region in policies.LEAF_REGIONS:
+        graph.upsert_node(
+            f"region:{region}", "LeafRegion", {"canonical_label": region, "observable": True}
+        )
+    for part in policies.NON_LEAF_PARTS:
+        graph.upsert_node(
+            f"part:{part}", "PlantPart", {"canonical_label": part, "observable": False}
+        )
+    for stage in policies.SEVERITY_STAGES:
         graph.upsert_node(f"severity:{stage}", "Severity", {"canonical_label": stage})
-    for value in P.OBSERVABILITY:
+    for value in policies.OBSERVABILITY:
         graph.upsert_node(f"observability:{value}", "Observability", {"canonical_label": value})
-    for category in P.AGENT_CATEGORIES:
+    for category in policies.AGENT_CATEGORIES:
         graph.upsert_node(f"agentcat:{category}", "AgentCategory", {"canonical_label": category})
 
 
 def _evidence_tiers(dkb: dict[str, Any]) -> dict[str, str]:
-    """key -> tier, taking the highest-priority tier across all references (deterministic)."""
+    """Key -> tier, taking the highest-priority tier across all references (deterministic)."""
     best: dict[str, str] = {}
     for disease in sorted(dkb["diseases"], key=lambda d: d["id"]):
         refs = disease.get("references", {})
-        for group, tier in (("recent_research", "peer_reviewed"),
-                             ("extension_service", "extension_service"),
-                             ("textbook", "textbook")):
+        for group, tier in (
+            ("recent_research", "peer_reviewed"),
+            ("extension_service", "extension_service"),
+            ("textbook", "textbook"),
+        ):
             for key in refs.get(group, []):
-                if _EVIDENCE_TIER_PRIORITY[tier] > _EVIDENCE_TIER_PRIORITY.get(best.get(key, ""), 0):
+                if _EVIDENCE_TIER_PRIORITY[tier] > _EVIDENCE_TIER_PRIORITY.get(
+                    best.get(key, ""), 0
+                ):
                     best[key] = tier
     return best
 
 
-def _instantiate_evidence(graph: ConceptGraph, registry: dict[str, Any], tiers: dict[str, str]) -> None:
+def _instantiate_evidence(
+    graph: ConceptGraph, registry: dict[str, Any], tiers: dict[str, str]
+) -> None:
     for key in sorted(registry):
         tier = tiers.get(key, "textbook")
         graph.upsert_node(
-            f"evidence:{key}", _EVIDENCE_TYPE[tier],
-            {"citation": registry[key].get("citation", ""), "url": registry[key].get("url", ""),
-             "tier": tier},
+            f"evidence:{key}",
+            _EVIDENCE_TYPE[tier],
+            {
+                "citation": registry[key].get("citation", ""),
+                "url": registry[key].get("url", ""),
+                "tier": tier,
+            },
         )
 
 
 def _crop_condition_index(dkb: dict[str, Any]) -> dict[str, list[tuple[str, str]]]:
-    """crop -> [(condition_id, class_label_lower)] for differential matching."""
+    """Crop -> [(condition_id, class_label_lower)] for differential matching."""
     index: dict[str, list[tuple[str, str]]] = {}
     for disease in dkb["diseases"]:
         index.setdefault(disease["crop"], []).append(
@@ -173,21 +188,33 @@ def _crop_condition_index(dkb: dict[str, Any]) -> dict[str, list[tuple[str, str]
     return index
 
 
-def _build_condition(graph: ConceptGraph, d: dict[str, Any],
-                     crop_index: dict[str, list[tuple[str, str]]]) -> None:
-    subtype = P.condition_subtype(d["is_pathogen_disease"], d["agent_category"])
+def _build_condition(
+    graph: ConceptGraph, d: dict[str, Any], crop_index: dict[str, list[tuple[str, str]]]
+) -> None:
+    subtype = policies.condition_subtype(d["is_pathogen_disease"], d["agent_category"])
     cond_id = f"condition:{d['id']}"
-    graph.upsert_node(cond_id, subtype, {
-        "canonical_label": d["class_label"], "disease_id": d["id"], "crop": d["crop"],
-        "disease_name": d.get("disease", ""), "common_name": d.get("common_name", ""),
-        "is_pathogen_disease": d["is_pathogen_disease"], "agent_category": d["agent_category"],
-        "scientific_name": d.get("scientific_name", ""), "pathogen_type": d.get("pathogen_type", ""),
-        "taxonomy_note": d.get("taxonomy_note", ""), "host_plant": d.get("host_plant", ""),
-        "dataset": d.get("dataset", ""), "disease_progression": d.get("disease_progression", ""),
-    })
+    graph.upsert_node(
+        cond_id,
+        subtype,
+        {
+            "canonical_label": d["class_label"],
+            "disease_id": d["id"],
+            "crop": d["crop"],
+            "disease_name": d.get("disease", ""),
+            "common_name": d.get("common_name", ""),
+            "is_pathogen_disease": d["is_pathogen_disease"],
+            "agent_category": d["agent_category"],
+            "scientific_name": d.get("scientific_name", ""),
+            "pathogen_type": d.get("pathogen_type", ""),
+            "taxonomy_note": d.get("taxonomy_note", ""),
+            "host_plant": d.get("host_plant", ""),
+            "dataset": d.get("dataset", ""),
+            "disease_progression": d.get("disease_progression", ""),
+        },
+    )
     evidence = _evidence_ids(d)
 
-    crop_id = f"crop:{P.slug(d['crop'])}"
+    crop_id = f"crop:{policies.slug(d['crop'])}"
     graph.upsert_node(crop_id, "Crop", {"canonical_label": d["crop"]})
     _edge(graph, "affects", cond_id, crop_id, confidence="asserted", evidence=evidence)
 
@@ -203,30 +230,43 @@ def _build_condition(graph: ConceptGraph, d: dict[str, Any],
     _build_environment(graph, d, cond_id, evidence)
 
 
-def _build_agent(graph: ConceptGraph, d: dict[str, Any], cond_id: str,
-                 subtype: str, evidence: list[str]) -> None:
-    agent_type = P.AGENT_TYPE_BY_CATEGORY[d["agent_category"]]
-    agent_id = f"agent:{P.slug(d['scientific_name'])}"
-    graph.upsert_node(agent_id, agent_type, {
-        "scientific_name": d["scientific_name"],
-        "synonyms": sorted(d.get("scientific_name_synonyms", [])),
-        "pathogen_type": d.get("pathogen_type", ""),
-    })
+def _build_agent(
+    graph: ConceptGraph, d: dict[str, Any], cond_id: str, subtype: str, evidence: list[str]
+) -> None:
+    agent_type = policies.AGENT_TYPE_BY_CATEGORY[d["agent_category"]]
+    agent_id = f"agent:{policies.slug(d['scientific_name'])}"
+    graph.upsert_node(
+        agent_id,
+        agent_type,
+        {
+            "scientific_name": d["scientific_name"],
+            "synonyms": sorted(d.get("scientific_name_synonyms", [])),
+            "pathogen_type": d.get("pathogen_type", ""),
+        },
+    )
     _edge(graph, "agent_in_category", agent_id, f"agentcat:{d['agent_category']}")
     family = d.get("pathogen_family", "").strip()
-    if family and family not in ("N/A", "None") and P.is_subtype(agent_type, "Pathogen"):
-        family_id = f"family:{P.slug(family)}"
+    if family and family not in ("N/A", "None") and policies.is_subtype(agent_type, "Pathogen"):
+        family_id = f"family:{policies.slug(family)}"
         graph.upsert_node(family_id, "PathogenFamily", {"canonical_label": family})
         _edge(graph, "member_of_family", agent_id, family_id, evidence=evidence)
-    _edge(graph, "caused_by", cond_id, agent_id, confidence="asserted",
-          evidence=evidence, flags={"disputed": False})
+    _edge(
+        graph,
+        "caused_by",
+        cond_id,
+        agent_id,
+        confidence="asserted",
+        evidence=evidence,
+        flags={"disputed": False},
+    )
 
 
-def _build_symptoms(graph: ConceptGraph, d: dict[str, Any], cond_id: str,
-                    subtype: str, evidence: list[str]) -> None:
+def _build_symptoms(
+    graph: ConceptGraph, d: dict[str, Any], cond_id: str, subtype: str, evidence: list[str]
+) -> None:
     seen: dict[str, str] = {}  # canonical label -> symptom id (dedup within condition, rule R1)
-    for field_name, abbr, confidence in P.SYMPTOM_FIELDS:
-        is_forbidden = field_name == P.FORBIDDEN_FIELD
+    for field_name, abbr, confidence in policies.SYMPTOM_FIELDS:
+        is_forbidden = field_name == policies.FORBIDDEN_FIELD
         observable = not is_forbidden
         for i, phrase in enumerate(d.get(field_name, [])):
             if not phrase.strip():
@@ -236,11 +276,17 @@ def _build_symptoms(graph: ConceptGraph, d: dict[str, Any], cond_id: str,
             if sid is None:
                 sid = f"symptom:{d['id']}:{abbr}:{i}"
                 seen[label] = sid
-                graph.upsert_node(sid, "Symptom", {
-                    "canonical_label": label, "source_text": phrase.strip(),
-                    "source_field": field_name, "observable": observable,
-                })
-                sign = P.classify_sign_type(phrase, subtype, d["agent_category"])
+                graph.upsert_node(
+                    sid,
+                    "Symptom",
+                    {
+                        "canonical_label": label,
+                        "source_text": phrase.strip(),
+                        "source_field": field_name,
+                        "observable": observable,
+                    },
+                )
+                sign = policies.classify_sign_type(phrase, subtype, d["agent_category"])
                 _edge(graph, "has_sign_type", sid, f"sign:{sign}")
                 obs_value = "observable" if observable else "non_observable"
                 _edge(graph, "has_observability", sid, f"observability:{obs_value}")
@@ -249,72 +295,122 @@ def _build_symptoms(graph: ConceptGraph, d: dict[str, Any], cond_id: str,
                 if is_forbidden:
                     for part in _match_non_leaf(phrase):
                         _edge(graph, "appears_on", sid, f"part:{part}")
-            _edge(graph, "has_symptom", cond_id, sid, confidence=confidence,
-                  evidence=evidence, flags={"primary": field_name in P.PRIMARY_FIELDS})
+            _edge(
+                graph,
+                "has_symptom",
+                cond_id,
+                sid,
+                confidence=confidence,
+                evidence=evidence,
+                flags={"primary": field_name in policies.PRIMARY_FIELDS},
+            )
 
 
-def _build_healthy_symptom(graph: ConceptGraph, d: dict[str, Any], cond_id: str,
-                           evidence: list[str]) -> None:
+def _build_healthy_symptom(
+    graph: ConceptGraph, d: dict[str, Any], cond_id: str, evidence: list[str]
+) -> None:
     """A HealthyState has exactly one healthy_surface symptom (rules C2/F3)."""
     source = d.get("primary_symptoms") or [d.get("class_label", "healthy leaf")]
     sid = f"symptom:{d['id']}:healthy:0"
-    graph.upsert_node(sid, "Symptom", {
-        "canonical_label": "healthy leaf surface", "source_text": source[0].strip(),
-        "source_field": "primary_symptoms", "observable": True,
-    })
+    graph.upsert_node(
+        sid,
+        "Symptom",
+        {
+            "canonical_label": "healthy leaf surface",
+            "source_text": source[0].strip(),
+            "source_field": "primary_symptoms",
+            "observable": True,
+        },
+    )
     _edge(graph, "has_sign_type", sid, "sign:healthy_surface")
     _edge(graph, "has_observability", sid, "observability:observable")
-    _edge(graph, "has_symptom", cond_id, sid, confidence="asserted",
-          evidence=evidence, flags={"primary": True})
+    _edge(
+        graph,
+        "has_symptom",
+        cond_id,
+        sid,
+        confidence="asserted",
+        evidence=evidence,
+        flags={"primary": True},
+    )
 
 
-def _build_qualities(graph: ConceptGraph, d: dict[str, Any], cond_id: str,
-                     evidence: list[str]) -> None:
-    for axis, field_name in P.QUALITY_AXES:
+def _build_qualities(
+    graph: ConceptGraph, d: dict[str, Any], cond_id: str, evidence: list[str]
+) -> None:
+    for axis, field_name in policies.QUALITY_AXES:
         concept_type = axis.capitalize()  # Color / Shape / Texture
         relation = f"has_{axis}"
         for term in d.get(field_name, []):
             if not term.strip():
                 continue
-            value_id = f"{axis}:{P.slug(term)}"
+            value_id = f"{axis}:{policies.slug(term)}"
             graph.upsert_node(value_id, concept_type, {"canonical_label": _canon(term)})
             _edge(graph, relation, cond_id, value_id, confidence="typical", evidence=evidence)
 
 
-def _build_severity(graph: ConceptGraph, d: dict[str, Any], cond_id: str,
-                    evidence: list[str]) -> None:
+def _build_severity(
+    graph: ConceptGraph, d: dict[str, Any], cond_id: str, evidence: list[str]
+) -> None:
     for term in d.get("severity_vocabulary", []):
-        if P.slug(term) in _NA_SLUGS:
+        if policies.slug(term) in _NA_SLUGS:
             continue
-        extent_id = f"extent:{P.slug(term)}"
+        extent_id = f"extent:{policies.slug(term)}"
         graph.upsert_node(extent_id, "Extent", {"canonical_label": _canon(term)})
-        _edge(graph, "has_extent", cond_id, extent_id, confidence="typical",
-              evidence=evidence, flags={"image_licensed": True})
+        _edge(
+            graph,
+            "has_extent",
+            cond_id,
+            extent_id,
+            confidence="typical",
+            evidence=evidence,
+            flags={"image_licensed": True},
+        )
     severity = d.get("severity", {})
-    for stage in P.SEVERITY_STAGES:
+    for stage in policies.SEVERITY_STAGES:
         values = severity.get(stage, [])
-        if values and not all(P.slug(v) in _NA_SLUGS for v in values):
-            _edge(graph, "typical_at_severity", cond_id, f"severity:{stage}",
-                  confidence="typical", evidence=evidence, flags={"image_licensed": False})
+        if values and not all(policies.slug(v) in _NA_SLUGS for v in values):
+            _edge(
+                graph,
+                "typical_at_severity",
+                cond_id,
+                f"severity:{stage}",
+                confidence="typical",
+                evidence=evidence,
+                flags={"image_licensed": False},
+            )
 
 
-def _build_differentials(graph: ConceptGraph, d: dict[str, Any], cond_id: str,
-                         evidence: list[str], crop_index: dict[str, list[tuple[str, str]]]) -> None:
+def _build_differentials(
+    graph: ConceptGraph,
+    d: dict[str, Any],
+    cond_id: str,
+    evidence: list[str],
+    crop_index: dict[str, list[tuple[str, str]]],
+) -> None:
     others = [(cid, label) for cid, label in crop_index.get(d["crop"], []) if cid != cond_id]
     for phrase in d.get("confused_with", []):
         text = phrase.lower()
         for other_id, other_label in others:
             if other_label and other_label in text:
-                _edge(graph, "differentiated_from", cond_id, other_id, confidence="asserted",
-                      evidence=evidence, note=phrase.strip())
+                _edge(
+                    graph,
+                    "differentiated_from",
+                    cond_id,
+                    other_id,
+                    confidence="asserted",
+                    evidence=evidence,
+                    note=phrase.strip(),
+                )
 
 
-def _build_environment(graph: ConceptGraph, d: dict[str, Any], cond_id: str,
-                       evidence: list[str]) -> None:
+def _build_environment(
+    graph: ConceptGraph, d: dict[str, Any], cond_id: str, evidence: list[str]
+) -> None:
     for phrase in d.get("environmental_conditions", []):
         if not phrase.strip():
             continue
-        env_id = f"env:{P.slug(phrase)}"
+        env_id = f"env:{policies.slug(phrase)}"
         graph.upsert_node(env_id, "EnvironmentalCondition", {"canonical_label": _canon(phrase)})
         _edge(graph, "favored_by", cond_id, env_id, confidence="typical", evidence=evidence)
 
@@ -323,9 +419,18 @@ def _build_environment(graph: ConceptGraph, d: dict[str, Any], cond_id: str,
 # Small helpers
 # --------------------------------------------------------------------------- #
 
-def _edge(graph: ConceptGraph, relation: str, source: str, target: str, *,
-          confidence: str | None = None, evidence: list[str] | None = None,
-          flags: dict[str, bool] | None = None, note: str | None = None) -> None:
+
+def _edge(
+    graph: ConceptGraph,
+    relation: str,
+    source: str,
+    target: str,
+    *,
+    confidence: str | None = None,
+    evidence: list[str] | None = None,
+    flags: dict[str, bool] | None = None,
+    note: str | None = None,
+) -> None:
     attributes: dict[str, Any] = {}
     if confidence is not None:
         attributes["confidence"] = confidence
@@ -354,7 +459,7 @@ def _canon(text: str) -> str:
 def _match_leaf_regions(phrase: str) -> list[str]:
     text = phrase.lower()
     found: list[str] = []
-    for keyword, region in P.LEAF_REGION_KEYWORDS:
+    for keyword, region in policies.LEAF_REGION_KEYWORDS:
         if keyword in text and region not in found:
             found.append(region)
     return sorted(found)
@@ -363,7 +468,7 @@ def _match_leaf_regions(phrase: str) -> list[str]:
 def _match_non_leaf(phrase: str) -> list[str]:
     text = phrase.lower()
     found: list[str] = []
-    for keyword, part in P.NON_LEAF_KEYWORDS:
+    for keyword, part in policies.NON_LEAF_KEYWORDS:
         if keyword in text and part not in found:
             found.append(part)
     return sorted(found)

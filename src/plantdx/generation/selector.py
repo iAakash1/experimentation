@@ -20,6 +20,7 @@ class ConceptSelector:
     """
 
     def __init__(self, epsilon: float = 0.30) -> None:
+        """Initialize the selector with the coverage-sampler exploration rate."""
         self.epsilon = epsilon
 
     def select(
@@ -30,7 +31,7 @@ class ConceptSelector:
     ) -> SelectedConcepts:
         """Return the concept set (and realizations) for one caption.
 
-        Enforces ``required ⊆ C ⊆ required ∪ optional``, the information budget,
+        Enforces ``required ⊆ C ⊆ required union optional``, the information budget,
         co-selection constraints, and the task-type response mask (doc 04 §4.2).
         """
         raise NotImplementedError("Milestone 3: coverage-guided concept selection")

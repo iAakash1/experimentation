@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pydantic
 import pytest
 
 from plantdx.config.schema import GenerationConfig, PlantDxConfig
@@ -21,12 +22,12 @@ def test_generation_defaults_match_spec() -> None:
 @pytest.mark.unit
 def test_config_requires_paths() -> None:
     # `paths` is mandatory (no sensible default); constructing without it must fail.
-    with pytest.raises(Exception):
+    with pytest.raises(pydantic.ValidationError):
         PlantDxConfig()  # type: ignore[call-arg]
 
 
 @pytest.mark.unit
 def test_config_is_frozen() -> None:
     gen = GenerationConfig()
-    with pytest.raises(Exception):
+    with pytest.raises(pydantic.ValidationError):
         gen.global_seed = 1  # type: ignore[misc]

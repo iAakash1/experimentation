@@ -22,6 +22,7 @@ class SymptomLexiconBuilder:
     """
 
     def __init__(self, knowledge_base: KnowledgeBase, ontology: Ontology) -> None:
+        """Initialize the builder with the DKB and derived ontology."""
         self.kb = knowledge_base
         self.ontology = ontology
 

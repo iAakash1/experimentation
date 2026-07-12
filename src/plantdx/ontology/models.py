@@ -1,4 +1,4 @@
-"""Data models for the derived caption ontology (doc 01 §2–§3).
+"""Data models for the derived caption ontology (doc 01 §2-§3).
 
 The ontology is a deterministic *projection* of the DKB. These models describe
 the projection's output; the derivation rules live in

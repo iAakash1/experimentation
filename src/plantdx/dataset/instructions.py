@@ -22,6 +22,7 @@ class InstructionBank:
     """
 
     def __init__(self, instructions_path: str | Path) -> None:
+        """Initialize the instruction bank with the path to instructions.json."""
         self.instructions_path = Path(instructions_path)
 
     def load(self) -> None:
@@ -32,7 +33,9 @@ class InstructionBank:
         """Return task types whose required concepts the disease supports (doc 04 §4.2)."""
         raise NotImplementedError("Milestone 4: task validity pruning")
 
-    def response_mask(self, task_type: TaskType) -> tuple[frozenset[ConceptId], frozenset[ConceptId]]:
+    def response_mask(
+        self, task_type: TaskType
+    ) -> tuple[frozenset[ConceptId], frozenset[ConceptId]]:
         """Return ``(required_concepts, allowed_concepts)`` for a task (doc 04 §4.2)."""
         raise NotImplementedError("Milestone 4: response constraint masks")
 

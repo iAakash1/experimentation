@@ -18,6 +18,7 @@ class DiversityController:
     """
 
     def __init__(self, caps: AntiDomination) -> None:
+        """Initialize the controller with the anti-domination thresholds."""
         self.caps = caps
 
     def template_share_ok(self, disease_id: str, template_id: str) -> bool:

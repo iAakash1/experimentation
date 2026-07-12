@@ -26,10 +26,10 @@ from plantdx.normalization.models import CropReport, NormalizedImage
 from plantdx.utils.hashing import sha256_bytes, sha256_hex
 from plantdx.utils.logging import get_logger
 
-
 # --------------------------------------------------------------------------- #
 # Small filesystem helpers
 # --------------------------------------------------------------------------- #
+
 
 def _sha256_file(path: Path) -> str:
     return sha256_bytes(path.read_bytes())
@@ -46,9 +46,7 @@ def _relposix(path: Path, base: Path) -> str:
 
 def _contains_images(directory: Path, extensions: set[str]) -> bool:
     """Whether ``directory`` directly contains at least one image file."""
-    return any(
-        p.is_file() and p.suffix.lower() in extensions for p in directory.iterdir()
-    )
+    return any(p.is_file() and p.suffix.lower() in extensions for p in directory.iterdir())
 
 
 def find_class_dirs(root: Path, extensions: set[str]) -> list[tuple[Path, str | None]]:
@@ -60,7 +58,9 @@ def find_class_dirs(root: Path, extensions: set[str]) -> list[tuple[Path, str | 
         if _contains_images(child, extensions):
             class_dirs.append((child, None))  # flat: child is a class
         else:
-            for sub in sorted(p for p in child.iterdir() if p.is_dir() and not p.name.startswith(".")):
+            for sub in sorted(
+                p for p in child.iterdir() if p.is_dir() and not p.name.startswith(".")
+            ):
                 if _contains_images(sub, extensions):
                     class_dirs.append((sub, child.name))  # nested: split = child.name
     return class_dirs
@@ -107,6 +107,7 @@ def _verify(dst: Path, checksum: str, mode: str) -> bool:
 # Per-crop normalization
 # --------------------------------------------------------------------------- #
 
+
 def normalize_crop(
     crop: str,
     source: SourceSpec,
@@ -147,7 +148,8 @@ def normalize_crop(
         dst_dir = processed_root / canonical
         dst_dir.mkdir(parents=True, exist_ok=True)
         source_files = sorted(
-            p for p in class_dir.iterdir()
+            p
+            for p in class_dir.iterdir()
             if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in exts
         )
         for src in source_files:
@@ -163,28 +165,44 @@ def normalize_crop(
                 disambiguated.append(_relposix(dst, base))
             if not _verify(dst, checksum, mode):
                 failures.append(_relposix(dst, base))
-            images.append(NormalizedImage(
-                dataset=source.dataset, crop=crop, class_name=canonical, split=split,
-                source_path=_relposix(src, base), normalized_path=_relposix(dst, base),
-                checksum=checksum,
-            ))
+            images.append(
+                NormalizedImage(
+                    dataset=source.dataset,
+                    crop=crop,
+                    class_name=canonical,
+                    split=split,
+                    source_path=_relposix(src, base),
+                    normalized_path=_relposix(dst, base),
+                    checksum=checksum,
+                )
+            )
             class_counts[canonical] = class_counts.get(canonical, 0) + 1
 
     images.sort(key=lambda im: im.normalized_path)
     # Location-independent: identifies content + class organization, not the output path.
     dataset_checksum = sha256_hex(
-        "\n".join(sorted(
-            f"{im.class_name}/{Path(im.normalized_path).name}:{im.checksum}" for im in images
-        ))
+        "\n".join(
+            sorted(
+                f"{im.class_name}/{Path(im.normalized_path).name}:{im.checksum}" for im in images
+            )
+        )
     )
     crop_report = CropReport(
-        crop=crop, dataset=source.dataset, mode=mode, layout=layout,
+        crop=crop,
+        dataset=source.dataset,
+        mode=mode,
+        layout=layout,
         processed_dir=_relposix(processed_root, base),
-        license=source.license, citation=source.citation, url=source.url,
-        image_count=len(images), class_count=len(class_counts),
+        license=source.license,
+        citation=source.citation,
+        url=source.url,
+        image_count=len(images),
+        class_count=len(class_counts),
         class_counts=dict(sorted(class_counts.items())),
-        ignored_folders=sorted(ignored), disambiguated=sorted(disambiguated),
-        duplicates_skipped=sorted(duplicates), checksum_failures=sorted(failures),
+        ignored_folders=sorted(ignored),
+        disambiguated=sorted(disambiguated),
+        duplicates_skipped=sorted(duplicates),
+        checksum_failures=sorted(failures),
         dataset_checksum=dataset_checksum,
     )
     return crop_report, images
@@ -193,6 +211,7 @@ def normalize_crop(
 # --------------------------------------------------------------------------- #
 # Config-driven run
 # --------------------------------------------------------------------------- #
+
 
 def run_normalization(
     config: PlantDxConfig,
@@ -219,21 +238,33 @@ def run_normalization(
         raw_root = base / config.paths.datasets[crop].root
         log.info("[%s] normalizing from %s (mode=%s) ...", crop, raw_root, effective_mode)
         crop_report, images = normalize_crop(
-            crop, source, raw_root, processed_base,
-            mode=effective_mode, extensions=extensions,
-            disambiguate=norm.disambiguate_on_collision, base_dir=base,
+            crop,
+            source,
+            raw_root,
+            processed_base,
+            mode=effective_mode,
+            extensions=extensions,
+            disambiguate=norm.disambiguate_on_collision,
+            base_dir=base,
         )
         report_writer.write_crop_outputs(processed_base / crop, source, crop_report, images)
         reports[crop] = crop_report
         log.info(
             "[%s] %d images -> %d classes (ignored %d folders, %d dup, %d failures) checksum=%s",
-            crop, crop_report.image_count, crop_report.class_count,
-            len(crop_report.ignored_folders), len(crop_report.duplicates_skipped),
-            len(crop_report.checksum_failures), crop_report.dataset_checksum[:12],
+            crop,
+            crop_report.image_count,
+            crop_report.class_count,
+            len(crop_report.ignored_folders),
+            len(crop_report.duplicates_skipped),
+            len(crop_report.checksum_failures),
+            crop_report.dataset_checksum[:12],
         )
 
     report_writer.write_run_report(
-        processed_base / "normalization_report.json", reports,
-        plantdx_version=plantdx_version, config_hash=config_hash, mode=effective_mode,
+        processed_base / "normalization_report.json",
+        reports,
+        plantdx_version=plantdx_version,
+        config_hash=config_hash,
+        mode=effective_mode,
     )
     return reports

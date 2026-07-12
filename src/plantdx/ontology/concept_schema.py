@@ -15,6 +15,7 @@ class ConceptSchemaLoader:
     """Loads the global :class:`ConceptSchema` from disk."""
 
     def __init__(self, path: str | Path) -> None:
+        """Initialize the loader with the path to the concept schema file."""
         self.path = Path(path)
 
     def load(self) -> ConceptSchema:

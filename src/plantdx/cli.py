@@ -8,9 +8,12 @@ which :func:`main` renders as a clean message rather than a traceback.
 Usage:
     plantdx --help
     plantdx --version
-    plantdx audit            --config configs/config.yaml   [--dataset tomato|mango|all] [--reports-dir DIR]
-    plantdx normalize        --config configs/config.yaml   [--dataset tomato|mango|all] [--mode copy|link]
-    plantdx ontology         --config configs/config.yaml   [--output DIR] [--validate-only] [--stats-only]
+    plantdx audit             --config configs/config.yaml
+                              [--dataset tomato|mango|all] [--reports-dir DIR]
+    plantdx normalize         --config configs/config.yaml
+                              [--dataset tomato|mango|all] [--mode copy|link]
+    plantdx ontology          --config configs/config.yaml
+                              [--output DIR] [--validate-only] [--stats-only]
     plantdx vocabulary build --config configs/config.yaml
     plantdx generate         --config configs/config.yaml
     plantdx validate         --config configs/config.yaml
@@ -30,7 +33,6 @@ from collections.abc import Sequence
 from plantdx.__about__ import __version__
 
 _MILESTONE = {
-    "ontology": "Milestone 2",
     "vocabulary": "Milestone 2",
     "generate": "Milestone 3",
     "validate": "Milestone 3",
@@ -65,11 +67,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_config(p_audit)
     p_audit.add_argument(
-        "--dataset", default="all",
+        "--dataset",
+        default="all",
         help="Dataset to audit: a config key (e.g. tomato, mango) or 'all' (default)",
     )
     p_audit.add_argument(
-        "--reports-dir", default=None,
+        "--reports-dir",
+        default=None,
         help="Override the reports output directory (default: paths.reports_dir)",
     )
 
@@ -80,11 +84,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_config(p_norm)
     p_norm.add_argument(
-        "--dataset", default="all",
+        "--dataset",
+        default="all",
         help="Dataset to normalize: a config key (e.g. tomato, mango) or 'all' (default)",
     )
     p_norm.add_argument(
-        "--mode", default=None, choices=["copy", "link"],
+        "--mode",
+        default=None,
+        choices=["copy", "link"],
         help="Override the placement mode (default: normalization.mode)",
     )
 
@@ -100,7 +107,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--validate-only", action="store_true", help="Compile and validate; write no artifacts"
     )
     p_onto.add_argument(
-        "--stats-only", action="store_true", help="Compile, validate, print statistics; write nothing"
+        "--stats-only",
+        action="store_true",
+        help="Compile, validate, print statistics; write nothing",
     )
 
     # vocabulary build
@@ -154,17 +163,24 @@ def _run_audit(args: argparse.Namespace) -> int:
         specs = [spec for spec in specs if spec.key == args.dataset]
         if not specs:
             available = ", ".join(sorted(config.paths.datasets)) + ", all"
-            print(f"plantdx audit: unknown dataset '{args.dataset}'. Available: {available}",
-                  file=sys.stderr)
+            print(
+                f"plantdx audit: unknown dataset '{args.dataset}'. Available: {available}",
+                file=sys.stderr,
+            )
             return 1
 
     reports_dir = Path(args.reports_dir) if args.reports_dir else Path(config.paths.reports_dir)
     manifest = run_audit(
-        specs, config.audit, reports_dir,
-        plantdx_version=__version__, config_hash=config_hash(config),
+        specs,
+        config.audit,
+        reports_dir,
+        plantdx_version=__version__,
+        config_hash=config_hash(config),
     )
-    print(f"Audit complete: {manifest.totals['images']} images across "
-          f"{len(manifest.datasets)} dataset(s). Reports in {reports_dir}/")
+    print(
+        f"Audit complete: {manifest.totals['images']} images across "
+        f"{len(manifest.datasets)} dataset(s). Reports in {reports_dir}/"
+    )
     print(f"Audit checksum: {manifest.audit_checksum}")
     return 0
 
@@ -187,21 +203,32 @@ def _run_normalize(args: argparse.Namespace) -> int:
     available = list(config.normalization.sources)
     crops = None if args.dataset == "all" else [args.dataset]
     if crops and args.dataset not in available:
-        print(f"plantdx normalize: unknown dataset '{args.dataset}'. "
-              f"Available: {', '.join(available)}, all", file=sys.stderr)
+        print(
+            f"plantdx normalize: unknown dataset '{args.dataset}'. "
+            f"Available: {', '.join(available)}, all",
+            file=sys.stderr,
+        )
         return 1
 
     reports = run_normalization(
-        config, base_dir=Path.cwd(), crops=crops, mode=args.mode,
-        plantdx_version=__version__, config_hash=config_hash(config),
+        config,
+        base_dir=Path.cwd(),
+        crops=crops,
+        mode=args.mode,
+        plantdx_version=__version__,
+        config_hash=config_hash(config),
     )
     total_images = sum(r.image_count for r in reports.values())
     failures = sum(len(r.checksum_failures) for r in reports.values())
-    print(f"Normalization complete: {total_images} images across {len(reports)} crop(s) "
-          f"into {config.paths.processed_dir}/")
+    print(
+        f"Normalization complete: {total_images} images across {len(reports)} crop(s) "
+        f"into {config.paths.processed_dir}/"
+    )
     for crop, report in reports.items():
-        print(f"  {crop}: {report.image_count} images, {report.class_count} classes, "
-              f"checksum {report.dataset_checksum[:12]}")
+        print(
+            f"  {crop}: {report.image_count} images, {report.class_count} classes, "
+            f"checksum {report.dataset_checksum[:12]}"
+        )
     if failures:
         print(f"WARNING: {failures} checksum verification failure(s).", file=sys.stderr)
         return 1
@@ -243,15 +270,22 @@ def _run_ontology(args: argparse.Namespace) -> int:
         print(json.dumps(stats, indent=2, sort_keys=True))
         return 0
     if args.validate_only:
-        print(f"ontology valid: {stats['concept_count']} concepts, "
-              f"{stats['edge_count']} edges, checksum {checksum}")
+        print(
+            f"ontology valid: {stats['concept_count']} concepts, "
+            f"{stats['edge_count']} edges, checksum {checksum}"
+        )
         return 0
 
-    out_dir = (Path(args.output) if args.output
-               else Path(config.paths.artifact_root) / config.paths.artifacts["ontology_dir"])
+    out_dir = (
+        Path(args.output)
+        if args.output
+        else Path(config.paths.artifact_root) / config.paths.artifacts["ontology_dir"]
+    )
     written = write_artifacts(result, out_dir, stats)
-    print(f"Ontology compiled: {stats['concept_count']} concepts, {stats['edge_count']} edges, "
-          f"{stats['condition_concepts']} conditions ({stats['disease_concepts']} diseases).")
+    print(
+        f"Ontology compiled: {stats['concept_count']} concepts, {stats['edge_count']} edges, "
+        f"{stats['condition_concepts']} conditions ({stats['disease_concepts']} diseases)."
+    )
     print(f"Checksum: {checksum}")
     print(f"Artifacts written to {out_dir}/ ({len(written)} files).")
     return 0

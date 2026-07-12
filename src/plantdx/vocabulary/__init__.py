@@ -11,8 +11,8 @@ from plantdx.vocabulary.lexicon import SymptomLexiconBuilder
 from plantdx.vocabulary.models import VocabularyBundle
 
 __all__ = [
-    "VocabularyBuilder",
     "SymptomLexiconBuilder",
-    "VocabularyExpander",
+    "VocabularyBuilder",
     "VocabularyBundle",
+    "VocabularyExpander",
 ]

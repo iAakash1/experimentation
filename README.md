@@ -44,6 +44,13 @@ Full argument: [`caption_framework/07_ieee_methodology_section.md`](caption_fram
 
 ## Architecture Diagram
 
+> This diagram shows the caption-generation pipeline (`caption_framework/`, still future work).
+> It is preceded in practice by three already-implemented, independent CPU-only stages —
+> `plantdx audit` → `plantdx normalize` → `plantdx ontology` (the **domain** ontology compiler,
+> `ontology_design/`) — which inventory the raw datasets, produce the canonical normalized
+> datasets, and compile the DKB into a typed knowledge graph. The "Ontology Builder (A)" below
+> is the *caption-concept* model, a separate, not-yet-implemented downstream view over that graph.
+
 ```
                 ┌──────────────────────────────────────────────┐
                 │  Disease Knowledge Base (Stage 1, FINAL)      │
@@ -84,7 +91,7 @@ Full argument: [`caption_framework/07_ieee_methodology_section.md`](caption_fram
  validation     validation/battery.py          draft → accept | regenerate
  diversity      diversity/controller.py         accepted → dedup + balanced corpus
  dataset        dataset/emitter.py,splits.py    corpus → caption_library.jsonl + splits
- converters     dataset/converters/*            canonical → per-model train files
+ converters     dataset/converters.py           canonical → per-model train files
  training       training/qlora.py,mlx_runner    train files → QLoRA adapters (MLX)
  evaluation     evaluation/*                    adapters → zero-shot vs fine-tuned report
 ```
@@ -93,30 +100,35 @@ Full argument: [`caption_framework/07_ieee_methodology_section.md`](caption_fram
 
 ```
 experiments/                      # repository root
-├── src/plantdx/                  # the Python package (typed interfaces; impl in later milestones)
-│   ├── config/                   #   typed config schema + YAML loader
-│   ├── core/                     #   shared types, enums, seeding, interfaces, exceptions
-│   ├── knowledge_base/           #   DKB loader + record models (Stage 1 consumer)
-│   ├── ontology/                 #   OntologyBuilder (component A) + models
-│   ├── vocabulary/               #   VocabularyBuilder (B), SymptomLexicon (C), Expander (F)
-│   ├── generation/               #   ConceptSelector (D), Templates (E), Realizer (F), Engine
-│   ├── validation/               #   12-stage ValidatorBattery (G)
-│   ├── diversity/                #   Deduplicator + DiversityController (H) + metrics
-│   ├── dataset/                  #   Emitter (I), serialization, splits, converters
-│   ├── qa/                       #   sampling, review, acceptance
-│   ├── training/                 #   QLoRA / mlx-vlm runners
-│   ├── evaluation/               #   zero-shot vs fine-tuned metrics
-│   └── utils/                    #   io, hashing, logging, versioning
-├── configs/                      # config.yaml, paths.yaml, generation/validation/training.yaml
+├── src/plantdx/                  # the Python package
+│   ├── config/                   #   typed config schema + YAML loader                    [implemented]
+│   ├── core/                     #   shared types, enums, seeding, exceptions             [implemented]
+│   ├── audit/                    #   Dataset Audit Engine (`plantdx audit`)                [implemented]
+│   ├── normalization/            #   Dataset Normalization Engine (`plantdx normalize`)    [implemented]
+│   ├── knowledge_base/           #   DKB loader + record models (Stage 1 consumer)         [stub]
+│   ├── ontology/                 #   caption-concept model (OntologyBuilder, component A)  [stub]
+│   │   └── domain/               #   Domain Ontology Compiler (`plantdx ontology`)         [implemented]
+│   ├── vocabulary/               #   VocabularyBuilder (B), SymptomLexicon (C), Expander (F) [stub]
+│   ├── generation/                #   ConceptSelector (D), Templates (E), Realizer (F), Engine [stub]
+│   ├── validation/               #   12-stage ValidatorBattery (G)                        [stub]
+│   ├── diversity/                #   Deduplicator + DiversityController (H) + metrics      [stub]
+│   ├── dataset/                  #   Emitter (I), serialization, splits, converters        [stub]
+│   ├── qa/                       #   sampling, review, acceptance                          [stub]
+│   ├── training/                 #   QLoRA / mlx-vlm runners                               [stub]
+│   ├── evaluation/               #   zero-shot vs fine-tuned metrics                       [stub]
+│   └── utils/                    #   io, hashing, logging, versioning                      [implemented]
+├── configs/                      # config.yaml, paths.yaml, audit/normalization/generation/validation/training.yaml
 ├── assets/                       # AUTHORED inputs (templates, static vocab, label_map, overrides)
-├── artifacts/                    # GENERATED outputs (gitignored) — maps to spec doc 06 tree
+├── artifacts/                    # GENERATED outputs (gitignored) — includes artifacts/ontology/
+├── datasets/                     # GENERATED, normalized canonical datasets (gitignored)
 ├── tests/                        # unit / integration / benchmark
-├── docs/                         # developer + design documentation
+├── docs/                         # developer documentation (AUDIT.md, NORMALIZATION.md, ONTOLOGY.md, ...)
 ├── scripts/                      # thin CLI wrappers
-├── knowledge_base/               # Stage 1 — the DKB (FINAL)
-├── caption_framework/            # Stage 2 — the design specification (FINAL)
-├── tomato/raw/PlantVillage/      # dataset (existing)
-└── mango/raw/MangoLeafBD/        # dataset (existing)
+├── knowledge_base/                # Stage 1 — the DKB (FINAL)
+├── caption_framework/             # Stage 2 — the caption framework design specification (FINAL)
+├── ontology_design/               # Stage 3 — the domain ontology design specification (FINAL)
+├── tomato/raw/PlantVillage/      # raw dataset, immutable (existing)
+└── mango/raw/MangoLeafBD/        # raw dataset, immutable (existing)
 ```
 
 > The `artifacts/` tree mirrors the **final** artifact layout in [`caption_framework/06_folder_structure_spec.md`](caption_framework/06_folder_structure_spec.md); `configs/paths.yaml` is the single mapping layer. See [`docs/REPO_LAYOUT.md`](docs/REPO_LAYOUT.md) for the spec↔repo correspondence.
@@ -142,49 +154,60 @@ pip install -e ".[train]"        # mlx, mlx-vlm
 
 ## Quick Start
 
-> ⚠️ Milestone 1 exposes the CLI surface and typed APIs; stage commands raise `NotImplementedError` until their milestone lands.
+> ⚠️ `audit`, `normalize`, and `ontology` are implemented (CPU-only, deterministic).
+> Later-stage commands still raise `NotImplementedError` until their milestone lands.
 
 ```bash
-plantdx --help                                   # top-level CLI
-plantdx ontology         --config configs/config.yaml   # domain ontology (implemented)
-plantdx generate         --config configs/config.yaml   # Milestone 3
-plantdx validate         --config configs/config.yaml   # Milestone 3
-plantdx dataset build    --config configs/config.yaml   # Milestone 4
-plantdx dataset convert  --model qwen3_vl               # Milestone 4
-plantdx train            --model qwen3_vl               # Milestone 5
-plantdx evaluate         --model qwen3_vl               # Milestone 6
+plantdx --help                                           # top-level CLI
+plantdx audit             --config configs/config.yaml   # implemented — dataset audit
+plantdx normalize         --config configs/config.yaml   # implemented — dataset normalization
+plantdx ontology          --config configs/config.yaml   # implemented — domain ontology compiler
+plantdx generate          --config configs/config.yaml   # Milestone 3
+plantdx validate          --config configs/config.yaml   # Milestone 3
+plantdx dataset build     --config configs/config.yaml   # Milestone 4
+plantdx dataset convert   --model qwen3_vl                # Milestone 4
+plantdx train             --model qwen3_vl                # Milestone 5
+plantdx evaluate          --model qwen3_vl                # Milestone 6
 ```
 
-Programmatic surface:
+Programmatic surface (implemented stages):
 
 ```python
 from plantdx.config import load_config
-from plantdx.ontology import OntologyBuilder
+from plantdx.ontology.domain import compile_ontology, validate_ontology, write_artifacts
 
 cfg = load_config("configs/config.yaml")
-# builder = OntologyBuilder(cfg)          # implemented in Milestone 2
-# ontology = builder.build()
+result = compile_ontology(cfg.paths.knowledge_base["dkb_json"])
+validate_ontology(result)   # fail-closed; raises OntologyValidationError on any rule breach
 ```
+
+See [`docs/AUDIT.md`](docs/AUDIT.md), [`docs/NORMALIZATION.md`](docs/NORMALIZATION.md), and
+[`docs/ONTOLOGY.md`](docs/ONTOLOGY.md) for each implemented stage's full usage.
 
 ## Datasets
 
-| Crop | Dataset | Classes | Location | Note |
-|------|---------|---------|----------|------|
-| Tomato | PlantVillage (tomato subset) | 10 | `tomato/raw/PlantVillage/` | ~14k images |
-| Mango | MangoLeafBD | 8 | `mango/raw/MangoLeafBD/` | 4k images, 500/class |
+| Crop | Raw dataset | Raw location | Note |
+|------|-------------|---------------|------|
+| Tomato | Full PlantVillage (all crops; `train/`+`val/` split) | `tomato/raw/PlantVillage/` | ~14k tomato images across 10 classes; the audit engine discovered the raw download is the complete multi-crop PlantVillage, not a pre-filtered tomato subset — see [`docs/AUDIT.md`](docs/AUDIT.md). |
+| Mango | MangoLeafBD (flat layout) | `mango/raw/MangoLeafBD/` | 4k images, 8 classes, 500/class. |
 
-Datasets are **fixed** and are treated as ground truth. PlantDx never relabels or infers labels from pixels. Folder-name → `disease_id` mapping is authored in `assets/metadata/label_map.json` (see [`caption_framework/04_dataset_schema_spec.md`](caption_framework/04_dataset_schema_spec.md)).
+Raw datasets are **immutable** (never renamed, moved, or modified) and are treated as ground truth.
+`plantdx normalize` extracts only the relevant classes, canonicalizes their names, and writes a
+crop-independent structure to `datasets/<crop>/processed/<class>/` — see [`docs/NORMALIZATION.md`](docs/NORMALIZATION.md).
+Downstream stages consume the **normalized** datasets, never `raw/` directly.
 
 ## Models
 
-Target VLMs for QLoRA fine-tuning (via MLX / `mlx-vlm` on Apple M4 Pro, 24 GB):
+Target VLMs for QLoRA fine-tuning (via MLX / `mlx-vlm` on Apple M4 Pro, 24 GB). All five converters
+(one per model, plus a generic `mlx_vlm` converter) live in a single module,
+[`dataset/converters.py`](src/plantdx/dataset/converters.py), behind a `CONVERTER_REGISTRY`:
 
-| Model | Params | Converter |
+| Model | Params | Converter class |
 |-------|--------|-----------|
-| Qwen3-VL-8B-Instruct | 8B | `dataset/converters/qwen3_vl.py` |
-| Qwen2.5-VL-7B-Instruct | 7B | `dataset/converters/qwen2_5_vl.py` |
-| InternVL3-8B | 8B | `dataset/converters/internvl3.py` |
-| Gemma-3-12B | 12B | `dataset/converters/gemma3.py` |
+| Qwen3-VL-8B-Instruct | 8B | `Qwen3VLConverter` |
+| Qwen2.5-VL-7B-Instruct | 7B | `Qwen2_5VLConverter` |
+| InternVL3-8B | 8B | `InternVL3Converter` |
+| Gemma-3-12B | 12B | `Gemma3Converter` |
 
 All four train on an **identical** canonical caption library and identical image-level splits (a precondition for fair comparison). Model-specific formatting is applied by pure converters at build time.
 
@@ -210,8 +233,11 @@ Released under the **Apache License 2.0** — see [`LICENSE`](LICENSE). Apache-2
 
 | Milestone | Scope | Status |
 |-----------|-------|--------|
-| **M1** | Repository scaffolding: structure, configs, typed APIs, tests, docs | ✅ this milestone |
-| **M2** | Ontology + Vocabulary + Symptom-Lexicon builders (DKB → ontology) | ⏳ next |
+| **M1** | Repository scaffolding: structure, configs, typed APIs, tests, docs | ✅ done |
+| **M2** | Dataset Audit Engine (`plantdx audit`) | ✅ done |
+| **M2.1** | Dataset Normalization Engine (`plantdx normalize`) | ✅ done |
+| **M2.2** | Domain Ontology Compiler (`plantdx ontology`) | ✅ done |
+| **M2b** | Caption concept model + Vocabulary + Symptom-Lexicon builders (a view over the ontology) | ⏳ next |
 | **M3** | Caption Generation Engine + 12-stage Validation Engine | ⏳ |
 | **M4** | Instruction Dataset Builder + splits + per-model converters | ⏳ |
 | **M5** | QLoRA fine-tuning (MLX) for all four models | ⏳ |

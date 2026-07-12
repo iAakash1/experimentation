@@ -8,7 +8,10 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = [pytest.mark.benchmark, pytest.mark.skip(reason="Milestone 3: requires a generated corpus")]
+pytestmark = [
+    pytest.mark.benchmark,
+    pytest.mark.skip(reason="Milestone 3: requires a generated corpus"),
+]
 
 
 def test_distinct_ngrams_meet_targets() -> None:

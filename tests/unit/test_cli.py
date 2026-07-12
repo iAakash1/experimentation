@@ -30,7 +30,6 @@ def test_no_command_prints_help_and_succeeds() -> None:
 @pytest.mark.parametrize(
     "argv",
     [
-        ["ontology", "build"],
         ["vocabulary", "build"],
         ["generate"],
         ["validate"],

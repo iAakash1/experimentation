@@ -6,6 +6,30 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed — CI stabilization pass (Ruff / mypy / pytest green; no behavior change)
+- Fixed a circular import (`dataset/emitter.py` ⇄ `generation/engine.py`) with a
+  `TYPE_CHECKING`-guarded import; zero runtime effect (`from __future__ import annotations`
+  already made the annotation lazy).
+- Fixed a pytest module-cache collision: two unrelated test fixture files shared the basename
+  `_dataset.py` (`tests/unit/audit/` and `tests/unit/normalization/`), and two test modules
+  shared `test_discovery.py`, silently shadowing each other under pytest's default import mode.
+  Renamed `tests/unit/normalization/_dataset.py` → `_sample_raw_datasets.py` and
+  `tests/unit/normalization/test_discovery.py` → `test_layout_detection.py`.
+- Updated 3 tests that had drifted from already-implemented reality: `test_cli.py` still
+  exercised the pre-domain-compiler `ontology build` stub subcommand; `test_stub_contracts.py`
+  still asserted `load_config`/`sha256_hex` raise `NotImplementedError` (both are implemented);
+  `test_repo_structure.py` read `paths.yaml` at its pre-nesting key path.
+- 120 Ruff findings resolved (docstrings, import order, unicode-in-docstrings, `Path.open()`
+  over `open()`, broad `pytest.raises(Exception)` narrowed to the actual observed exception,
+  a `policies as P` import alias removed in favor of the qualified name). Two lint rules
+  (`N801` on `Qwen2_5VLConverter`, `N818` on `InvariantViolation`) were suppressed with scoped,
+  justified `# noqa` rather than renamed, since renaming would break the public API.
+- 1 mypy error fixed in `audit/report.py` (an explicit `list[list[object]]` annotation,
+  matching an existing sibling function's pattern).
+- **Ontology `content_hash` verified unchanged (`sha256:25ae0f6d9692a6d00a8968dc916a3665001bba29dd45616afe5e9b3c49bf2ca4`)
+  across every step of this pass** — all changes were formatting, imports, docstrings, and
+  type annotations, never semantic.
+
 ### Added — Domain Ontology Compiler (CPU-only, deterministic)
 - `src/plantdx/ontology/domain/` — a deterministic `Ontology = f(DKB, Policies)` compiler
   that turns the DKB into a typed knowledge graph: `models`, `policies` (fixed T-Box +

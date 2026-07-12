@@ -6,4 +6,4 @@ from plantdx.qa.acceptance import AcceptanceEvaluator
 from plantdx.qa.review import ReviewStore
 from plantdx.qa.sampling import AuditSampler
 
-__all__ = ["AuditSampler", "ReviewStore", "AcceptanceEvaluator"]
+__all__ = ["AcceptanceEvaluator", "AuditSampler", "ReviewStore"]

@@ -1,5 +1,4 @@
-"""PlantDx — a knowledge-grounded framework for constructing instruction-tuning
-datasets for agricultural Vision-Language Models.
+"""PlantDx: a knowledge-grounded framework for agricultural VLM instruction-tuning datasets.
 
 Captions are generated from a curated, cited Disease Knowledge Base and a
 controlled vocabulary via ontology-driven templates and multi-stage validation —
@@ -15,4 +14,4 @@ from __future__ import annotations
 from plantdx.__about__ import __version__
 from plantdx.config import PlantDxConfig, load_config
 
-__all__ = ["__version__", "load_config", "PlantDxConfig"]
+__all__ = ["PlantDxConfig", "__version__", "load_config"]

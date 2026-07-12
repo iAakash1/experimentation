@@ -33,6 +33,7 @@ class AuditSampler:
     """
 
     def __init__(self, per_disease: int = 100, seed: int = 20260711) -> None:
+        """Initialize the sampler with the per-disease minimum and draw seed."""
         self.per_disease = per_disease
         self.seed = seed
 

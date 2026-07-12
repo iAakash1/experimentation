@@ -35,6 +35,7 @@ class GrammarChecker:
         language: str = "en-US",
         blocking_categories: tuple[str, ...] = (),
     ) -> None:
+        """Initialize the checker with the backend, language, and blocking categories."""
         self.backend = backend
         self.language = language
         self.blocking_categories = blocking_categories

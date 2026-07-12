@@ -23,9 +23,14 @@ def test_run_audit_writes_all_reports(sample_dataset: dict[str, Any], tmp_path: 
     manifest = run_audit([_spec(sample_dataset["root"])], AuditConfig(), reports)
 
     expected_files = [
-        "dataset_card.md", "sample_summary.json", "class_distribution.csv",
-        "image_statistics.csv", "duplicate_images.csv", "corrupt_images.csv",
-        "audit_manifest.json", "audit.log",
+        "dataset_card.md",
+        "sample_summary.json",
+        "class_distribution.csv",
+        "image_statistics.csv",
+        "duplicate_images.csv",
+        "corrupt_images.csv",
+        "audit_manifest.json",
+        "audit.log",
     ]
     for name in expected_files:
         assert (reports / name).is_file(), f"missing report: {name}"
@@ -40,7 +45,9 @@ def test_run_audit_writes_all_reports(sample_dataset: dict[str, Any], tmp_path: 
 
 
 @pytest.mark.unit
-def test_manifest_json_parses_and_has_checksum(sample_dataset: dict[str, Any], tmp_path: Path) -> None:
+def test_manifest_json_parses_and_has_checksum(
+    sample_dataset: dict[str, Any], tmp_path: Path
+) -> None:
     reports = tmp_path / "reports"
     run_audit([_spec(sample_dataset["root"])], AuditConfig(), reports)
     manifest = json.loads((reports / "audit_manifest.json").read_text(encoding="utf-8"))

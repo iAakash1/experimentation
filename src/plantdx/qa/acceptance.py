@@ -35,6 +35,7 @@ class AcceptanceEvaluator:
         max_minor_rate: float = 0.05,
         min_kappa: float = 0.80,
     ) -> None:
+        """Initialize the evaluator with the acceptance-rule thresholds."""
         self.max_major_rate = max_major_rate
         self.max_minor_rate = max_minor_rate
         self.min_kappa = min_kappa

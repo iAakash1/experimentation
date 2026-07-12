@@ -1,4 +1,4 @@
-"""The twelve caption validators V1–V12 (doc 03 §2).
+"""The twelve caption validators V1-V12 (doc 03 §2).
 
 Each validator is a small, single-responsibility subclass of :class:`BaseValidator`.
 All are image-blind: they enforce consistency with the label's licensed

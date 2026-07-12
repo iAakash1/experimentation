@@ -24,6 +24,7 @@ class Deduplicator:
         num_perm: int = 128,
         shingle_size: int = 5,
     ) -> None:
+        """Initialize the deduplicator with the near-duplicate detection thresholds."""
         self.jaccard_threshold = jaccard_threshold
         self.num_perm = num_perm
         self.shingle_size = shingle_size

@@ -25,6 +25,7 @@ class DKBLoader:
     """
 
     def __init__(self, dkb_path: str | Path) -> None:
+        """Initialize the loader with the path to dkb.json."""
         self.dkb_path = Path(dkb_path)
 
     def load(self) -> KnowledgeBase:

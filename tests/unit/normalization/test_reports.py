@@ -19,8 +19,14 @@ def _normalize(spec_dict: dict[str, Any], tmp_path: Path):
     source = SourceSpec(dataset=spec_dict["dataset"], class_map=spec_dict["class_map"])
     processed_base = tmp_path / "datasets"
     report, images = normalize_crop(
-        "tomato", source, spec_dict["root"], processed_base,
-        mode="copy", extensions=EXTS, disambiguate=True, base_dir=tmp_path,
+        "tomato",
+        source,
+        spec_dict["root"],
+        processed_base,
+        mode="copy",
+        extensions=EXTS,
+        disambiguate=True,
+        base_dir=tmp_path,
     )
     return source, report, images, processed_base
 
@@ -41,11 +47,26 @@ def test_write_crop_outputs(plantvillage: dict[str, Any], tmp_path: Path) -> Non
     manifest = json.loads((crop_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["count"] == plantvillage["image_count"]
     row = manifest["images"][0]
-    assert {"source_path", "normalized_path", "checksum", "class_name", "split", "dataset"} <= row.keys()
+    assert {
+        "source_path",
+        "normalized_path",
+        "checksum",
+        "class_name",
+        "split",
+        "dataset",
+    } <= row.keys()
 
     card = (crop_dir / "dataset_card.md").read_text(encoding="utf-8")
-    for heading in ("Source dataset", "License", "Original citation", "Download URL",
-                    "Normalization timestamp", "Image count", "Class count", "Known limitations"):
+    for heading in (
+        "Source dataset",
+        "License",
+        "Original citation",
+        "Download URL",
+        "Normalization timestamp",
+        "Image count",
+        "Class count",
+        "Known limitations",
+    ):
         assert heading in card
 
 

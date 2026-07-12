@@ -23,7 +23,7 @@ _MAX_ISSUES_IN_CARD = 50
 
 def _write_csv(path: Path, header: list[str], rows: list[list[object]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", newline="", encoding="utf-8") as f:
+    with path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(header)
         writer.writerows(rows)
@@ -31,15 +31,38 @@ def _write_csv(path: Path, header: list[str], rows: list[list[object]]) -> None:
 
 def write_image_statistics_csv(path: Path, records: Sequence[ImageRecord]) -> None:
     """One row per image: dimensions, mode, format, size, aspect ratio, hash."""
-    header = ["dataset", "class", "relpath", "ok", "width", "height", "mode",
-              "format", "file_size", "aspect_ratio", "sha256", "error"]
+    header = [
+        "dataset",
+        "class",
+        "relpath",
+        "ok",
+        "width",
+        "height",
+        "mode",
+        "format",
+        "file_size",
+        "aspect_ratio",
+        "sha256",
+        "error",
+    ]
     rows: list[list[object]] = []
     for r in sorted(records, key=lambda x: (x.dataset, x.relpath)):
-        rows.append([
-            r.dataset, r.class_name, r.relpath, r.ok, r.width or "", r.height or "",
-            r.mode or "", r.format or "", r.file_size,
-            "" if r.aspect_ratio is None else r.aspect_ratio, r.sha256, r.error or "",
-        ])
+        rows.append(
+            [
+                r.dataset,
+                r.class_name,
+                r.relpath,
+                r.ok,
+                r.width or "",
+                r.height or "",
+                r.mode or "",
+                r.format or "",
+                r.file_size,
+                "" if r.aspect_ratio is None else r.aspect_ratio,
+                r.sha256,
+                r.error or "",
+            ]
+        )
     _write_csv(path, header, rows)
 
 
@@ -56,7 +79,7 @@ def write_class_distribution_csv(path: Path, reports: Sequence[DatasetReport]) -
 def write_corrupt_csv(path: Path, records: Sequence[ImageRecord]) -> None:
     """One row per corrupt/unreadable image."""
     header = ["dataset", "class", "relpath", "error", "sha256"]
-    rows = [
+    rows: list[list[object]] = [
         [r.dataset, r.class_name, r.relpath, r.error or "", r.sha256]
         for r in sorted(records, key=lambda x: (x.dataset, x.relpath))
         if not r.ok
@@ -115,20 +138,26 @@ def write_dataset_card_md(
     lines.append("")
     totals = manifest.totals
     lines.append("## Totals\n")
-    lines.append(f"- Images: **{totals['images']}** "
-                 f"(ok: {totals['ok']}, corrupt: {totals['corrupt']}, "
-                 f"unsupported: {totals['unsupported']})")
+    lines.append(
+        f"- Images: **{totals['images']}** "
+        f"(ok: {totals['ok']}, corrupt: {totals['corrupt']}, "
+        f"unsupported: {totals['unsupported']})"
+    )
     lines.append(f"- Classes (across datasets): {totals['classes']}")
-    lines.append(f"- Exact-duplicate groups: {totals['exact_duplicate_groups']} · "
-                 f"near-duplicate groups: {totals['near_duplicate_groups']}")
+    lines.append(
+        f"- Exact-duplicate groups: {totals['exact_duplicate_groups']} · "
+        f"near-duplicate groups: {totals['near_duplicate_groups']}"
+    )
     lines.append(f"- Split status: {manifest.splits['status']} — {manifest.splits['note']}")
     lines.append("")
 
     for report in reports:
         lines.append(f"## {report.key} — {report.name}\n")
         lines.append(f"- Root: `{report.root}` (exists: {report.exists})")
-        lines.append(f"- Images: {report.num_images} (ok: {report.num_ok}, "
-                     f"corrupt: {report.num_corrupt}, unsupported: {report.num_unsupported})")
+        lines.append(
+            f"- Images: {report.num_images} (ok: {report.num_ok}, "
+            f"corrupt: {report.num_corrupt}, unsupported: {report.num_unsupported})"
+        )
         configured = "n/a" if report.configured_classes is None else report.configured_classes
         lines.append(f"- Classes discovered: {report.num_classes} (config expects: {configured})")
         lines.append(_stats_line("Width (px)", report.width))
@@ -142,8 +171,7 @@ def write_dataset_card_md(
             for class_name in sorted(report.class_counts):
                 lines.append(f"| {class_name} | {report.class_counts[class_name]} |")
         if report.issues:
-            lines.append(f"\n**Issues ({len(report.issues)}):** "
-                         "(full detail in the CSV reports)")
+            lines.append(f"\n**Issues ({len(report.issues)}):** (full detail in the CSV reports)")
             for issue in report.issues[:_MAX_ISSUES_IN_CARD]:
                 where = f" (`{issue.path}`)" if issue.path else ""
                 lines.append(f"- `{issue.kind}`: {issue.detail}{where}")

@@ -34,6 +34,7 @@ class SplitBuilder:
         seed: int,
         splits_dir: str | Path,
     ) -> None:
+        """Initialize the split builder with the split ratios, seed, and output dir."""
         self.train = train
         self.val = val
         self.test = test

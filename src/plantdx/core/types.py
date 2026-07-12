@@ -193,7 +193,7 @@ class QAAnnotation:
 class CaptionRecord:
     """The canonical, model-agnostic caption record (doc 04 §1).
 
-    One image yields many records (captions × instruction pairings); all share
+    One image yields many records (captions x instruction pairings); all share
     ``image.id`` and therefore the same :attr:`split`.
     """
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 from plantdx.core.types import CaptionRecord, ValidationReport
 from plantdx.validation.grammar import GrammarChecker
 from plantdx.validation.report import RunReport, ValidationContext
-from plantdx.validation.validators import BaseValidator, ORDERED_VALIDATORS
+from plantdx.validation.validators import ORDERED_VALIDATORS, BaseValidator
 
 
 class ValidatorBattery:
@@ -27,6 +27,7 @@ class ValidatorBattery:
         grammar: GrammarChecker,
         validators: tuple[BaseValidator, ...] | None = None,
     ) -> None:
+        """Initialize the battery with the grammar checker and validator instances."""
         self.grammar = grammar
         self.validators: tuple[BaseValidator, ...] = validators or tuple(
             v() for v in ORDERED_VALIDATORS

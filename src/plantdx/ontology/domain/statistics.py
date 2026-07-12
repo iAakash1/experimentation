@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from plantdx.ontology.domain import policies as P
+from plantdx.ontology.domain import policies
 from plantdx.ontology.domain.models import Ontology
 
 _CONDITION_TYPES = ("Disease", "PestDamage", "SurfaceColonization", "HealthyState")
 
 
 def _inheritance_depth() -> int:
-    return max(len(P.ancestors(c.id)) for c in P.CONCEPT_TYPES)
+    return max(len(policies.ancestors(c.id)) for c in policies.CONCEPT_TYPES)
 
 
 def compute(ontology: Ontology, dkb: dict[str, Any], validation_status: str) -> dict[str, Any]:
@@ -24,8 +24,8 @@ def compute(ontology: Ontology, dkb: dict[str, Any], validation_status: str) -> 
         edges_by_relation[edge.type] = edges_by_relation.get(edge.type, 0) + 1
 
     property_count = sum(len(n.properties) for n in ontology.nodes)
-    consumed = len(P.CONSUMED_FIELDS)
-    total_fields = len(P.CONSUMED_FIELDS | P.ALLOWLIST_FIELDS)
+    consumed = len(policies.CONSUMED_FIELDS)
+    total_fields = len(policies.CONSUMED_FIELDS | policies.ALLOWLIST_FIELDS)
 
     return {
         "schema_version": ontology.schema_version,
@@ -44,8 +44,9 @@ def compute(ontology: Ontology, dkb: dict[str, Any], validation_status: str) -> 
         "shape_concepts": nodes_by_type.get("Shape", 0),
         "texture_concepts": nodes_by_type.get("Texture", 0),
         "morphology_concepts": nodes_by_type.get("Shape", 0) + nodes_by_type.get("Texture", 0),
-        "evidence_concepts": sum(nodes_by_type.get(t, 0)
-                                 for t in ("PeerReviewed", "ExtensionService", "Textbook")),
+        "evidence_concepts": sum(
+            nodes_by_type.get(t, 0) for t in ("PeerReviewed", "ExtensionService", "Textbook")
+        ),
         "property_count": property_count,
         "inheritance_depth": _inheritance_depth(),
         "nodes_by_type": {k: nodes_by_type[k] for k in sorted(nodes_by_type)},

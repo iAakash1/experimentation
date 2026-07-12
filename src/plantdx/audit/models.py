@@ -55,7 +55,7 @@ class Stats:
     mean: float
 
     @classmethod
-    def of(cls, values: Iterable[float]) -> "Stats | None":
+    def of(cls, values: Iterable[float]) -> Stats | None:
         """Build stats from ``values``; return ``None`` if there are none."""
         vals = [v for v in values if v is not None]
         if not vals:

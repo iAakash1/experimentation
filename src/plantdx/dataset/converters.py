@@ -52,7 +52,7 @@ class BaseConverter(ABC):
         raise NotImplementedError("Milestone 4: per-line schema validation")
 
 
-class Qwen2_5VLConverter(BaseConverter):
+class Qwen2_5VLConverter(BaseConverter):  # noqa: N801 - name encodes the Qwen2.5-VL model; not renamed
     """Qwen2.5-VL messages / typed-content-list schema (doc 04 §6.1)."""
 
     model_key = "qwen2_5_vl"
@@ -116,11 +116,11 @@ CONVERTER_REGISTRY: dict[TargetModel, type[BaseConverter]] = {
 }
 
 __all__ = [
+    "CONVERTER_REGISTRY",
     "BaseConverter",
+    "Gemma3Converter",
+    "InternVL3Converter",
+    "MLXVLMConverter",
     "Qwen2_5VLConverter",
     "Qwen3VLConverter",
-    "InternVL3Converter",
-    "Gemma3Converter",
-    "MLXVLMConverter",
-    "CONVERTER_REGISTRY",
 ]

@@ -23,10 +23,16 @@ def _concept_type_dict(c: ConceptType) -> dict[str, Any]:
 
 def _relation_type_dict(r: RelationType) -> dict[str, Any]:
     return {
-        "name": r.name, "domain": list(r.domain), "range": list(r.range),
-        "cardinality_out": r.cardinality_out, "cardinality_in": r.cardinality_in,
-        "carries_confidence": r.carries_confidence, "carries_evidence": r.carries_evidence,
-        "carries_flags": list(r.carries_flags), "symmetric": r.symmetric, "transitive": r.transitive,
+        "name": r.name,
+        "domain": list(r.domain),
+        "range": list(r.range),
+        "cardinality_out": r.cardinality_out,
+        "cardinality_in": r.cardinality_in,
+        "carries_confidence": r.carries_confidence,
+        "carries_evidence": r.carries_evidence,
+        "carries_flags": list(r.carries_flags),
+        "symmetric": r.symmetric,
+        "transitive": r.transitive,
     }
 
 
@@ -35,8 +41,13 @@ def _node_dict(n: Node) -> dict[str, Any]:
 
 
 def _edge_dict(e: Edge) -> dict[str, Any]:
-    return {"id": e.id, "type": e.type, "source": e.source, "target": e.target,
-            "attributes": e.attributes}
+    return {
+        "id": e.id,
+        "type": e.type,
+        "source": e.source,
+        "target": e.target,
+        "attributes": e.attributes,
+    }
 
 
 def _sorted_concept_types(o: Ontology) -> list[dict[str, Any]]:
@@ -52,41 +63,58 @@ def _sorted_nodes(o: Ontology) -> list[dict[str, Any]]:
 
 
 def _sorted_edges(o: Ontology) -> list[dict[str, Any]]:
-    return [_edge_dict(e) for e in sorted(o.edges, key=lambda e: (e.type, e.source, e.target, e.id))]
+    return [
+        _edge_dict(e) for e in sorted(o.edges, key=lambda e: (e.type, e.source, e.target, e.id))
+    ]
 
 
 def schema_content(o: Ontology) -> dict[str, Any]:
     """The T-Box only (basis of ``schema_hash``)."""
-    return {"schema_version": o.schema_version,
-            "concept_types": _sorted_concept_types(o),
-            "relation_types": _sorted_relation_types(o)}
+    return {
+        "schema_version": o.schema_version,
+        "concept_types": _sorted_concept_types(o),
+        "relation_types": _sorted_relation_types(o),
+    }
 
 
 def semantic_content(o: Ontology) -> dict[str, Any]:
     """The full semantic content excluding provenance (basis of ``content_hash``)."""
-    return {"schema_version": o.schema_version, "ontology_version": o.ontology_version,
-            "concept_types": _sorted_concept_types(o), "relation_types": _sorted_relation_types(o),
-            "nodes": _sorted_nodes(o), "edges": _sorted_edges(o)}
+    return {
+        "schema_version": o.schema_version,
+        "ontology_version": o.ontology_version,
+        "concept_types": _sorted_concept_types(o),
+        "relation_types": _sorted_relation_types(o),
+        "nodes": _sorted_nodes(o),
+        "edges": _sorted_edges(o),
+    }
 
 
 def ontology_document(o: Ontology) -> dict[str, Any]:
     """The complete ``ontology.json`` document (T-Box + A-Box + provenance)."""
-    return {"kind": "plantdx.ontology.domain", "schema_version": o.schema_version,
-            "ontology_version": o.ontology_version, "provenance": o.provenance,
-            "concept_types": _sorted_concept_types(o), "relation_types": _sorted_relation_types(o),
-            "nodes": _sorted_nodes(o), "edges": _sorted_edges(o)}
+    return {
+        "kind": "plantdx.ontology.domain",
+        "schema_version": o.schema_version,
+        "ontology_version": o.ontology_version,
+        "provenance": o.provenance,
+        "concept_types": _sorted_concept_types(o),
+        "relation_types": _sorted_relation_types(o),
+        "nodes": _sorted_nodes(o),
+        "edges": _sorted_edges(o),
+    }
 
 
 def concept_graph_document(o: Ontology) -> dict[str, Any]:
     """A graph-centric view (``concept_graph.json``): light nodes + directed edges."""
     return {
         "kind": "plantdx.ontology.concept_graph",
-        "schema_version": o.schema_version, "ontology_version": o.ontology_version,
+        "schema_version": o.schema_version,
+        "ontology_version": o.ontology_version,
         "content_hash": o.provenance.get("content_hash", ""),
         "nodes": [{"id": n.id, "type": n.type} for n in sorted(o.nodes, key=lambda n: n.id)],
-        "edges": [{"source": e.source, "relation": e.type, "target": e.target,
-                   "attributes": e.attributes}
-                  for e in sorted(o.edges, key=lambda e: (e.type, e.source, e.target, e.id))],
+        "edges": [
+            {"source": e.source, "relation": e.type, "target": e.target, "attributes": e.attributes}
+            for e in sorted(o.edges, key=lambda e: (e.type, e.source, e.target, e.id))
+        ],
     }
 
 
@@ -113,7 +141,8 @@ def concept_index_document(o: Ontology) -> dict[str, Any]:
 
     return {
         "kind": "plantdx.ontology.concept_index",
-        "schema_version": o.schema_version, "ontology_version": o.ontology_version,
+        "schema_version": o.schema_version,
+        "ontology_version": o.ontology_version,
         "content_hash": o.provenance.get("content_hash", ""),
         "conditions": conditions,
         "by_type": {k: by_type[k] for k in sorted(by_type)},

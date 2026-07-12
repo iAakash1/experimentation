@@ -8,6 +8,7 @@ provenance to ``artifacts/generation/provenance/`` for audit/regeneration.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from plantdx.core.types import (
     CaptionRecord,
@@ -18,7 +19,13 @@ from plantdx.core.types import (
     Response,
     SelectedConcepts,
 )
-from plantdx.generation.models import CaptionDraft
+
+if TYPE_CHECKING:
+    # Deferred: plantdx.generation imports plantdx.dataset.emitter at module load
+    # time, so importing this at runtime would create a circular import. Safe to
+    # defer because `from __future__ import annotations` makes all annotations
+    # lazy strings; only static type checkers need this import.
+    from plantdx.generation.models import CaptionDraft
 
 
 class Emitter:
@@ -30,6 +37,7 @@ class Emitter:
     """
 
     def __init__(self, library_path: str | Path, provenance_dir: str | Path) -> None:
+        """Initialize the emitter with the library and provenance output paths."""
         self.library_path = Path(library_path)
         self.provenance_dir = Path(provenance_dir)
 

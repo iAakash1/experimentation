@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import pytest
-
 from _dkb import clone, minimal_dkb
+
 from plantdx.core.exceptions import KnowledgeBaseError
-from plantdx.ontology.domain import builder, policies as P, validator
+from plantdx.ontology.domain import builder, policies, validator
 from plantdx.ontology.domain.models import ConceptType, Edge, Node
 from plantdx.ontology.domain.validator import OntologyValidationError
 
@@ -18,6 +18,7 @@ def _valid_ontology():
 
 
 # --- DKB-level failures -----------------------------------------------------
+
 
 @pytest.mark.unit
 def test_empty_dkb_rejected() -> None:
@@ -43,6 +44,7 @@ def test_duplicate_disease_id_rejected() -> None:
 
 # --- graph-level failures (fail closed) -------------------------------------
 
+
 @pytest.mark.unit
 def test_valid_ontology_passes() -> None:
     dkb, ontology = _valid_ontology()
@@ -61,9 +63,15 @@ def test_unknown_concept_type_detected() -> None:
 def test_forbidden_relationship_detected() -> None:
     dkb, ontology = _valid_ontology()
     # HealthyState must not have a caused_by edge (rule F4).
-    ontology.edges.append(Edge("e:bad", "caused_by", "condition:tomato_healthy",
-                               "agent:testus_fungus", {"confidence": "asserted",
-                                                       "evidence": ["evidence:REF1"]}))
+    ontology.edges.append(
+        Edge(
+            "e:bad",
+            "caused_by",
+            "condition:tomato_healthy",
+            "agent:testus_fungus",
+            {"confidence": "asserted", "evidence": ["evidence:REF1"]},
+        )
+    )
     with pytest.raises(OntologyValidationError, match="F4"):
         validator.validate(ontology, dkb)
 
@@ -71,7 +79,9 @@ def test_forbidden_relationship_detected() -> None:
 @pytest.mark.unit
 def test_dangling_edge_detected() -> None:
     dkb, ontology = _valid_ontology()
-    ontology.edges.append(Edge("e:dangle", "affects", "condition:does_not_exist", "crop:tomato", {}))
+    ontology.edges.append(
+        Edge("e:dangle", "affects", "condition:does_not_exist", "crop:tomato", {})
+    )
     with pytest.raises(OntologyValidationError, match="V-ONT-6"):
         validator.validate(ontology, dkb)
 
@@ -86,6 +96,7 @@ def test_uncovered_dkb_field_detected() -> None:
 
 # --- inheritance acyclicity -------------------------------------------------
 
+
 @pytest.mark.unit
 def test_shipped_taxonomy_is_acyclic() -> None:
     assert validator._v10_acyclic() == []  # the real T-Box has no is_a cycle
@@ -94,6 +105,6 @@ def test_shipped_taxonomy_is_acyclic() -> None:
 @pytest.mark.unit
 def test_circular_inheritance_detected(monkeypatch: pytest.MonkeyPatch) -> None:
     cyclic = {"A": ConceptType("A", "B"), "B": ConceptType("B", "A")}
-    monkeypatch.setattr(P, "CONCEPT_TYPES", tuple(cyclic.values()))
-    monkeypatch.setattr(P, "CONCEPT_TYPE_BY_ID", cyclic)
+    monkeypatch.setattr(policies, "CONCEPT_TYPES", tuple(cyclic.values()))
+    monkeypatch.setattr(policies, "CONCEPT_TYPE_BY_ID", cyclic)
     assert validator._v10_acyclic()  # cycle detected -> non-empty

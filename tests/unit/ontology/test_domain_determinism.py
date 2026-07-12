@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from _dkb import minimal_dkb
+
 from plantdx.ontology.domain import builder, serialization, statistics, validator
 
 # Golden content hash of the real 18-condition DKB. A change here is a semantic
@@ -55,7 +55,10 @@ def test_regression_real_dkb_builds_validates_and_matches_golden() -> None:
     builder.validate_dkb(dkb)
     ontology, _ = builder.build_ontology(dkb, builder.dkb_file_sha256(_REAL_DKB))
     validator.validate(ontology, dkb)  # 18 conditions, must pass
-    conditions = [n for n in ontology.nodes
-                  if n.type in ("Disease", "PestDamage", "SurfaceColonization", "HealthyState")]
+    conditions = [
+        n
+        for n in ontology.nodes
+        if n.type in ("Disease", "PestDamage", "SurfaceColonization", "HealthyState")
+    ]
     assert len(conditions) == 18
     assert ontology.provenance["content_hash"] == GOLDEN_REAL_DKB_HASH

@@ -12,7 +12,9 @@ from plantdx.core.types import ImageRef
 
 @pytest.mark.unit
 def test_imageref_is_frozen() -> None:
-    ref = ImageRef(id="x", path="tomato/raw/PlantVillage/a/1.JPG", dataset="PlantVillage", crop=Crop.TOMATO)
+    ref = ImageRef(
+        id="x", path="tomato/raw/PlantVillage/a/1.JPG", dataset="PlantVillage", crop=Crop.TOMATO
+    )
     assert ref.crop is Crop.TOMATO
     with pytest.raises(dataclasses.FrozenInstanceError):
         ref.id = "y"  # type: ignore[misc]

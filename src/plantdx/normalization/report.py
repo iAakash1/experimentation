@@ -14,24 +14,30 @@ from plantdx.utils.io import write_json
 
 def write_class_mapping_json(path: Path, source: SourceSpec, report: CropReport) -> None:
     """Write ``original folder -> normalized class`` plus the ignored folders."""
-    write_json(path, {
-        "crop": report.crop,
-        "dataset": report.dataset,
-        "mapping": dict(sorted(source.class_map.items())),
-        "included_classes": sorted(report.class_counts),
-        "ignored_folders": report.ignored_folders,
-    })
+    write_json(
+        path,
+        {
+            "crop": report.crop,
+            "dataset": report.dataset,
+            "mapping": dict(sorted(source.class_map.items())),
+            "included_classes": sorted(report.class_counts),
+            "ignored_folders": report.ignored_folders,
+        },
+    )
 
 
 def write_manifest_json(path: Path, report: CropReport, images: Sequence[NormalizedImage]) -> None:
     """Write one row per image: source path, normalized path, checksum, class, split."""
-    write_json(path, {
-        "crop": report.crop,
-        "dataset": report.dataset,
-        "count": len(images),
-        "dataset_checksum": report.dataset_checksum,
-        "images": [asdict(image) for image in images],
-    })
+    write_json(
+        path,
+        {
+            "crop": report.crop,
+            "dataset": report.dataset,
+            "count": len(images),
+            "dataset_checksum": report.dataset_checksum,
+            "images": [asdict(image) for image in images],
+        },
+    )
 
 
 def write_dataset_card_md(path: Path, report: CropReport) -> None:
@@ -91,15 +97,18 @@ def write_run_report(
     path: Path, reports: dict[str, CropReport], *, plantdx_version: str, config_hash: str, mode: str
 ) -> None:
     """Write the combined normalization run report."""
-    write_json(path, {
-        "tool": "plantdx.normalize",
-        "plantdx_version": plantdx_version,
-        "config_hash": config_hash,
-        "normalized_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "mode": mode,
-        "totals": {
-            "images": sum(r.image_count for r in reports.values()),
-            "classes": sum(r.class_count for r in reports.values()),
+    write_json(
+        path,
+        {
+            "tool": "plantdx.normalize",
+            "plantdx_version": plantdx_version,
+            "config_hash": config_hash,
+            "normalized_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "mode": mode,
+            "totals": {
+                "images": sum(r.image_count for r in reports.values()),
+                "classes": sum(r.class_count for r in reports.values()),
+            },
+            "crops": {crop: asdict(report) for crop, report in reports.items()},
         },
-        "crops": {crop: asdict(report) for crop, report in reports.items()},
-    })
+    )

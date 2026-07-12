@@ -20,6 +20,7 @@ class LabelResolver:
     """
 
     def __init__(self, label_map_path: str | Path) -> None:
+        """Initialize the resolver with the path to label_map.json."""
         self.label_map_path = Path(label_map_path)
 
     def load(self) -> None:

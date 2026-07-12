@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _dataset import build_mango, build_plantvillage  # noqa: E402
+from _sample_raw_datasets import build_mango, build_plantvillage
 
 
 @pytest.fixture

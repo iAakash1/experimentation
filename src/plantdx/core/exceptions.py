@@ -27,7 +27,7 @@ class DerivationError(PlantDxError):
     """
 
 
-class InvariantViolation(PlantDxError):
+class InvariantViolation(PlantDxError):  # noqa: N818 - established public name; not renamed
     """A design invariant was violated (see ``caption_framework/README.md``).
 
     Raised when, e.g., a term not traceable to the DKB would enter a caption, or a
@@ -51,9 +51,7 @@ class ValidationHardError(PlantDxError):
         self.disease_id = disease_id
         self.validator_id = validator_id
         self.detail = detail
-        super().__init__(
-            f"Hard validation error for {disease_id!r} at {validator_id}: {detail}"
-        )
+        super().__init__(f"Hard validation error for {disease_id!r} at {validator_id}: {detail}")
 
 
 class DiversityGateError(PlantDxError):

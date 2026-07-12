@@ -18,8 +18,14 @@ def _run(spec_dict: dict[str, Any], tmp_path: Path, crop: str, dataset: str):
     source = SourceSpec(dataset=dataset, class_map=spec_dict["class_map"])
     processed_base = tmp_path / "datasets"
     return normalize_crop(
-        crop, source, spec_dict["root"], processed_base,
-        mode="copy", extensions=EXTS, disambiguate=True, base_dir=tmp_path,
+        crop,
+        source,
+        spec_dict["root"],
+        processed_base,
+        mode="copy",
+        extensions=EXTS,
+        disambiguate=True,
+        base_dir=tmp_path,
     ), processed_base
 
 
@@ -78,4 +84,8 @@ def test_flat_mango_layout(mango: dict[str, Any], tmp_path: Path) -> None:
     assert report.class_counts == mango["class_counts"]  # "Bacterial Canker" -> bacterial_canker
     assert report.layout == mango["layout"]
     processed = processed_base / "mango" / "processed"
-    assert sorted(p.name for p in processed.iterdir()) == ["anthracnose", "bacterial_canker", "healthy"]
+    assert sorted(p.name for p in processed.iterdir()) == [
+        "anthracnose",
+        "bacterial_canker",
+        "healthy",
+    ]

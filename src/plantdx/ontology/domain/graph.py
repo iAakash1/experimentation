@@ -19,11 +19,14 @@ class ConceptGraph:
     """A deterministic node/edge store keyed by id."""
 
     def __init__(self) -> None:
+        """Initialize an empty node/edge store."""
         self._nodes: dict[str, Node] = {}
         self._edges: dict[str, Edge] = {}
 
     # --- nodes ---
-    def upsert_node(self, node_id: str, type_id: str, properties: dict[str, Any] | None = None) -> Node:
+    def upsert_node(
+        self, node_id: str, type_id: str, properties: dict[str, Any] | None = None
+    ) -> Node:
         """Create the node, or merge new properties into an existing one."""
         existing = self._nodes.get(node_id)
         if existing is not None:
@@ -35,9 +38,11 @@ class ConceptGraph:
         return node
 
     def has_node(self, node_id: str) -> bool:
+        """Return True if a node with this id exists."""
         return node_id in self._nodes
 
     def get_node(self, node_id: str) -> Node | None:
+        """Return the node with this id, or None if it does not exist."""
         return self._nodes.get(node_id)
 
     def nodes(self) -> list[Node]:
@@ -45,6 +50,7 @@ class ConceptGraph:
         return [self._nodes[k] for k in sorted(self._nodes)]
 
     def nodes_of_type(self, type_id: str) -> list[Node]:
+        """Return all nodes of the given concept type, sorted by id."""
         return [n for n in self.nodes() if n.type == type_id]
 
     # --- edges ---
@@ -62,12 +68,20 @@ class ConceptGraph:
         return sorted(self._edges.values(), key=lambda e: (e.type, e.source, e.target, e.id))
 
     def out_edges(self, source: str, relation: str | None = None) -> list[Edge]:
-        return [e for e in self.edges()
-                if e.source == source and (relation is None or e.type == relation)]
+        """Return edges leaving `source`, optionally filtered to one relation type."""
+        return [
+            e
+            for e in self.edges()
+            if e.source == source and (relation is None or e.type == relation)
+        ]
 
     def in_edges(self, target: str, relation: str | None = None) -> list[Edge]:
-        return [e for e in self.edges()
-                if e.target == target and (relation is None or e.type == relation)]
+        """Return edges entering `target`, optionally filtered to one relation type."""
+        return [
+            e
+            for e in self.edges()
+            if e.target == target and (relation is None or e.type == relation)
+        ]
 
 
 def _merge_edge_attributes(into: dict[str, Any], other: dict[str, Any]) -> None:

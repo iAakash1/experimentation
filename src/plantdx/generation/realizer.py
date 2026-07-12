@@ -23,6 +23,7 @@ class SlotRealizer:
     """
 
     def __init__(self, expander: VocabularyExpander) -> None:
+        """Initialize the realizer with the vocabulary expander."""
         self.expander = expander
 
     def realize(

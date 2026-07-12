@@ -15,8 +15,7 @@ from plantdx.config.schema import AuditConfig
 def _inspect_all(root: Path, *, near: bool) -> list[ImageRecord]:
     found, _ = discovery.discover_images(root, AuditConfig().supported_extensions)
     return [
-        images.inspect_image(p, "s", c, root, compute_ahash=near, ahash_size=8)
-        for p, c in found
+        images.inspect_image(p, "s", c, root, compute_ahash=near, ahash_size=8) for p, c in found
     ]
 
 

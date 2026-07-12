@@ -104,32 +104,112 @@ def is_subtype(type_id: str, of: str) -> bool:
 # --------------------------------------------------------------------------- #
 
 RELATION_TYPES: tuple[RelationType, ...] = (
-    RelationType("affects", ("Condition",), ("Crop",), "1..n", "0..n",
-                 carries_confidence=True, carries_evidence=True),
-    RelationType("caused_by", ("Condition",), ("CausalAgent",), "0..n", "0..n",
-                 carries_confidence=True, carries_evidence=True, carries_flags=("disputed",)),
+    RelationType(
+        "affects",
+        ("Condition",),
+        ("Crop",),
+        "1..n",
+        "0..n",
+        carries_confidence=True,
+        carries_evidence=True,
+    ),
+    RelationType(
+        "caused_by",
+        ("Condition",),
+        ("CausalAgent",),
+        "0..n",
+        "0..n",
+        carries_confidence=True,
+        carries_evidence=True,
+        carries_flags=("disputed",),
+    ),
     RelationType("agent_in_category", ("CausalAgent",), ("AgentCategory",), "1", "0..n"),
-    RelationType("member_of_family", ("Pathogen",), ("PathogenFamily",), "0..1", "0..n",
-                 carries_evidence=True),
-    RelationType("has_symptom", ("Condition",), ("Symptom",), "1..n", "1",
-                 carries_confidence=True, carries_evidence=True, carries_flags=("primary",)),
+    RelationType(
+        "member_of_family",
+        ("Pathogen",),
+        ("PathogenFamily",),
+        "0..1",
+        "0..n",
+        carries_evidence=True,
+    ),
+    RelationType(
+        "has_symptom",
+        ("Condition",),
+        ("Symptom",),
+        "1..n",
+        "1",
+        carries_confidence=True,
+        carries_evidence=True,
+        carries_flags=("primary",),
+    ),
     RelationType("has_sign_type", ("Symptom",), ("SignType",), "1", "0..n"),
     RelationType("has_observability", ("Symptom",), ("Observability",), "1", "0..n"),
     RelationType("appears_on", ("Symptom",), ("LeafRegion", "PlantPart"), "0..n", "0..n"),
-    RelationType("has_color", ("Condition",), ("Color",), "0..n", "0..n",
-                 carries_confidence=True, carries_evidence=True),
-    RelationType("has_shape", ("Condition",), ("Shape",), "0..n", "0..n",
-                 carries_confidence=True, carries_evidence=True),
-    RelationType("has_texture", ("Condition",), ("Texture",), "0..n", "0..n",
-                 carries_confidence=True, carries_evidence=True),
-    RelationType("has_extent", ("Condition",), ("Extent",), "0..n", "0..n",
-                 carries_confidence=True, carries_evidence=True, carries_flags=("image_licensed",)),
-    RelationType("typical_at_severity", ("Condition",), ("Severity",), "0..n", "0..n",
-                 carries_confidence=True, carries_evidence=True, carries_flags=("image_licensed",)),
-    RelationType("differentiated_from", ("Condition",), ("Condition",), "0..n", "0..n",
-                 carries_confidence=True, carries_evidence=True),
-    RelationType("favored_by", ("Condition",), ("EnvironmentalCondition",), "0..n", "0..n",
-                 carries_confidence=True, carries_evidence=True),
+    RelationType(
+        "has_color",
+        ("Condition",),
+        ("Color",),
+        "0..n",
+        "0..n",
+        carries_confidence=True,
+        carries_evidence=True,
+    ),
+    RelationType(
+        "has_shape",
+        ("Condition",),
+        ("Shape",),
+        "0..n",
+        "0..n",
+        carries_confidence=True,
+        carries_evidence=True,
+    ),
+    RelationType(
+        "has_texture",
+        ("Condition",),
+        ("Texture",),
+        "0..n",
+        "0..n",
+        carries_confidence=True,
+        carries_evidence=True,
+    ),
+    RelationType(
+        "has_extent",
+        ("Condition",),
+        ("Extent",),
+        "0..n",
+        "0..n",
+        carries_confidence=True,
+        carries_evidence=True,
+        carries_flags=("image_licensed",),
+    ),
+    RelationType(
+        "typical_at_severity",
+        ("Condition",),
+        ("Severity",),
+        "0..n",
+        "0..n",
+        carries_confidence=True,
+        carries_evidence=True,
+        carries_flags=("image_licensed",),
+    ),
+    RelationType(
+        "differentiated_from",
+        ("Condition",),
+        ("Condition",),
+        "0..n",
+        "0..n",
+        carries_confidence=True,
+        carries_evidence=True,
+    ),
+    RelationType(
+        "favored_by",
+        ("Condition",),
+        ("EnvironmentalCondition",),
+        "0..n",
+        "0..n",
+        carries_confidence=True,
+        carries_evidence=True,
+    ),
 )
 
 RELATION_TYPE_BY_NAME = {r.name: r for r in RELATION_TYPES}
@@ -139,25 +219,47 @@ RELATION_TYPE_BY_NAME = {r.name: r for r in RELATION_TYPES}
 # --------------------------------------------------------------------------- #
 
 SIGN_TYPES: tuple[str, ...] = (
-    "lesion", "coating", "gall", "stippling", "cut", "deformation", "mottle", "healthy_surface",
+    "lesion",
+    "coating",
+    "gall",
+    "stippling",
+    "cut",
+    "deformation",
+    "mottle",
+    "healthy_surface",
 )
 LEAF_REGIONS: tuple[str, ...] = (
-    "lamina", "margin", "tip", "midrib", "vein", "interveinal", "adaxial_surface", "abaxial_surface",
+    "lamina",
+    "margin",
+    "tip",
+    "midrib",
+    "vein",
+    "interveinal",
+    "adaxial_surface",
+    "abaxial_surface",
 )
 NON_LEAF_PARTS: tuple[str, ...] = ("fruit", "stem", "twig", "flower", "root", "whole_plant")
 SEVERITY_STAGES: tuple[str, ...] = ("mild", "moderate", "severe")
 OBSERVABILITY: tuple[str, ...] = ("observable", "non_observable")
 AGENT_CATEGORIES: tuple[str, ...] = (
-    "none", "bacterium", "fungus", "oomycete", "virus",
-    "arthropod_pest", "insect_pest", "saprophytic_fungus",
+    "none",
+    "bacterium",
+    "fungus",
+    "oomycete",
+    "virus",
+    "arthropod_pest",
+    "insect_pest",
+    "saprophytic_fungus",
 )
 
 # --------------------------------------------------------------------------- #
 # DKB → ontology mapping policies
 # --------------------------------------------------------------------------- #
 
+
 # Condition subtype from (is_pathogen_disease, agent_category).
 def condition_subtype(is_pathogen: bool, agent_category: str) -> str:
+    """Return the Condition subtype for a DKB disease's pathogen flag and category."""
     if agent_category == "none":
         return "HealthyState"
     if agent_category == "saprophytic_fungus":
@@ -203,12 +305,48 @@ SIGN_TYPE_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("gall", ("gall", "wart", "pimple", "nodul", "swelling")),
     ("cut", ("cut", "notch", "windowpane", "trimmed", "scissor", "chewed")),
     ("stippling", ("stippl", "webbing", "bronz", "speckl", "fleck")),
-    ("coating", ("coating", "mould", "mold", "sooty", "powdery", "mildew", "film", "velvety", "downy")),
+    (
+        "coating",
+        ("coating", "mould", "mold", "sooty", "powdery", "mildew", "film", "velvety", "downy"),
+    ),
     ("mottle", ("mosaic", "mottl")),
-    ("deformation", ("curl", "cupping", "distort", "fern", "malform", "pucker", "rugose",
-                     "crinkl", "scorch", "wilt", "dieback", "die-back", "dried")),
-    ("lesion", ("lesion", "spot", "blotch", "necro", "blight", "canker", "chloros",
-                "shot-hole", "ring", "target", "concentric", "water-soaked", "greasy", "halo")),
+    (
+        "deformation",
+        (
+            "curl",
+            "cupping",
+            "distort",
+            "fern",
+            "malform",
+            "pucker",
+            "rugose",
+            "crinkl",
+            "scorch",
+            "wilt",
+            "dieback",
+            "die-back",
+            "dried",
+        ),
+    ),
+    (
+        "lesion",
+        (
+            "lesion",
+            "spot",
+            "blotch",
+            "necro",
+            "blight",
+            "canker",
+            "chloros",
+            "shot-hole",
+            "ring",
+            "target",
+            "concentric",
+            "water-soaked",
+            "greasy",
+            "halo",
+        ),
+    ),
 )
 
 # Sign types permitted per condition subtype (rule C2); default when no keyword fits.
@@ -221,6 +359,7 @@ SUBTYPE_ALLOWED_SIGNS = {
 
 
 def default_sign(subtype: str, agent_category: str) -> str:
+    """Return the fallback sign type for a condition subtype and agent category."""
     if subtype == "HealthyState":
         return "healthy_surface"
     if subtype == "SurfaceColonization":
@@ -259,30 +398,77 @@ LEAF_REGION_KEYWORDS: tuple[tuple[str, str], ...] = (
     ("lamina", "lamina"),
 )
 NON_LEAF_KEYWORDS: tuple[tuple[str, str], ...] = (
-    ("fruit", "fruit"), ("twig", "twig"), ("branch", "twig"), ("stem", "stem"),
-    ("blossom", "flower"), ("flower", "flower"), ("root", "root"),
-    ("whole plant", "whole_plant"), ("tree", "whole_plant"),
-    ("vascular", "stem"), ("gummosis", "stem"),
+    ("fruit", "fruit"),
+    ("twig", "twig"),
+    ("branch", "twig"),
+    ("stem", "stem"),
+    ("blossom", "flower"),
+    ("flower", "flower"),
+    ("root", "root"),
+    ("whole plant", "whole_plant"),
+    ("tree", "whole_plant"),
+    ("vascular", "stem"),
+    ("gummosis", "stem"),
 )
 
 # --------------------------------------------------------------------------- #
 # DKB field coverage (rule V-ONT-11)
 # --------------------------------------------------------------------------- #
 
-CONSUMED_FIELDS = frozenset({
-    "id", "crop", "class_label", "is_pathogen_disease", "agent_category", "disease",
-    "common_name", "scientific_name", "scientific_name_synonyms", "taxonomy_note",
-    "pathogen_type", "pathogen_family", "environmental_conditions", "primary_symptoms",
-    "secondary_symptoms", "diagnostic_visual_features", "key_differentiating_features",
-    "forbidden_symptoms_not_leaf_observable", "color_vocabulary", "shape_vocabulary",
-    "texture_vocabulary", "severity_vocabulary", "severity", "confused_with", "references",
-})
+CONSUMED_FIELDS = frozenset(
+    {
+        "id",
+        "crop",
+        "class_label",
+        "is_pathogen_disease",
+        "agent_category",
+        "disease",
+        "common_name",
+        "scientific_name",
+        "scientific_name_synonyms",
+        "taxonomy_note",
+        "pathogen_type",
+        "pathogen_family",
+        "environmental_conditions",
+        "primary_symptoms",
+        "secondary_symptoms",
+        "diagnostic_visual_features",
+        "key_differentiating_features",
+        "forbidden_symptoms_not_leaf_observable",
+        "color_vocabulary",
+        "shape_vocabulary",
+        "texture_vocabulary",
+        "severity_vocabulary",
+        "severity",
+        "confused_with",
+        "references",
+    }
+)
 # Retained on the condition or intentionally not decomposed (prose / caption-layer / agronomic).
-ALLOWLIST_FIELDS = frozenset({
-    "dataset", "host_plant", "disease_progression", "leaf_color", "lesion_morphology",
-    "lesion_shape", "lesion_size", "lesion_distribution", "leaf_margin_changes",
-    "leaf_curling", "necrosis", "chlorosis", "texture_changes", "severity_indicators",
-    "recommended_controlled_vocabulary", "recommended_synonyms", "recommended_adjectives",
-    "forbidden_adjectives", "recommended_caption_vocabulary", "forbidden_terms",
-    "management_practices", "treatment_recommendations", "prevention_recommendations",
-})
+ALLOWLIST_FIELDS = frozenset(
+    {
+        "dataset",
+        "host_plant",
+        "disease_progression",
+        "leaf_color",
+        "lesion_morphology",
+        "lesion_shape",
+        "lesion_size",
+        "lesion_distribution",
+        "leaf_margin_changes",
+        "leaf_curling",
+        "necrosis",
+        "chlorosis",
+        "texture_changes",
+        "severity_indicators",
+        "recommended_controlled_vocabulary",
+        "recommended_synonyms",
+        "recommended_adjectives",
+        "forbidden_adjectives",
+        "recommended_caption_vocabulary",
+        "forbidden_terms",
+        "management_practices",
+        "treatment_recommendations",
+        "prevention_recommendations",
+    }
+)

@@ -40,15 +40,35 @@ from plantdx.core.exceptions import (
 )
 from plantdx.core.seeding import attempt_seed, caption_seed, image_seed
 
-__all__ = [
+__all__ = [  # noqa: RUF022 - grouped by source (enums / exceptions / seed helpers), not flat-sorted
     # enums
-    "AgentCategory", "ConceptId", "Crop", "DefectClass", "ExpansionEdgeType",
-    "InformationLevel", "LengthBand", "Register", "SignType", "Split", "Style",
-    "TargetModel", "TaskType", "Verdict",
+    "AgentCategory",
+    "ConceptId",
+    "Crop",
+    "DefectClass",
+    "ExpansionEdgeType",
+    "InformationLevel",
+    "LengthBand",
+    "Register",
+    "SignType",
+    "Split",
+    "Style",
+    "TargetModel",
+    "TaskType",
+    "Verdict",
     # exceptions
-    "ConfigError", "ConversionError", "DerivationError", "DiversityGateError",
-    "GenerationError", "InvariantViolation", "KnowledgeBaseError", "PlantDxError",
-    "ReproducibilityError", "ValidationHardError",
+    "ConfigError",
+    "ConversionError",
+    "DerivationError",
+    "DiversityGateError",
+    "GenerationError",
+    "InvariantViolation",
+    "KnowledgeBaseError",
+    "PlantDxError",
+    "ReproducibilityError",
+    "ValidationHardError",
     # seed helpers
-    "image_seed", "caption_seed", "attempt_seed",
+    "attempt_seed",
+    "caption_seed",
+    "image_seed",
 ]

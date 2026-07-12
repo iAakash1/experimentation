@@ -36,7 +36,7 @@ def test_master_config_includes_the_others(configs_dir: Path) -> None:
 def test_paths_point_at_existing_datasets(configs_dir: Path, repo_root: Path) -> None:
     paths = yaml.safe_load((configs_dir / "paths.yaml").read_text(encoding="utf-8"))
     for crop in ("tomato", "mango"):
-        root = repo_root / paths["datasets"][crop]["root"]
+        root = repo_root / paths["paths"]["datasets"][crop]["root"]
         # The dataset root directory should exist even if images are gitignored.
         assert root.parent.is_dir(), f"dataset parent missing for {crop}: {root}"
 
@@ -45,9 +45,19 @@ def test_paths_point_at_existing_datasets(configs_dir: Path, repo_root: Path) ->
 def test_package_tree_present(repo_root: Path) -> None:
     pkg = repo_root / "src" / "plantdx"
     for sub in (
-        "core", "config", "knowledge_base", "ontology", "vocabulary",
-        "generation", "validation", "diversity", "dataset", "qa",
-        "training", "evaluation", "utils",
+        "core",
+        "config",
+        "knowledge_base",
+        "ontology",
+        "vocabulary",
+        "generation",
+        "validation",
+        "diversity",
+        "dataset",
+        "qa",
+        "training",
+        "evaluation",
+        "utils",
     ):
         assert (pkg / sub / "__init__.py").is_file(), f"missing package: {sub}"
     assert (pkg / "py.typed").is_file()

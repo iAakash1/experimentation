@@ -31,6 +31,7 @@ class DiversityEvaluator:
     """Computes diversity metrics and evaluates them against configured gates."""
 
     def __init__(self, gates: dict[str, float]) -> None:
+        """Initialize the evaluator with the configured diversity gate thresholds."""
         self.gates = gates
 
     def compute(self, records: Sequence[CaptionRecord]) -> DiversityMetrics:

@@ -1,4 +1,4 @@
-"""Caption Engine — orchestrates components D–I (doc 00 §3).
+"""Caption Engine - orchestrates components D-I (doc 00 §3).
 
 Implements the per-image generation algorithm: plan the budget, then for each
 requested caption select concepts, choose a template, realize + expand, validate
@@ -23,7 +23,7 @@ from plantdx.validation.battery import ValidatorBattery
 
 
 class CaptionEngine:
-    """Deterministic, image-blind caption generator (doc 00 §2–§3).
+    """Deterministic, image-blind caption generator (doc 00 §2-§3).
 
     Args:
         ontology: The derived caption ontology.
@@ -54,6 +54,7 @@ class CaptionEngine:
         global_seed: int,
         max_attempts: int = 8,
     ) -> None:
+        """Initialize the engine with its D-I components, the seed, and retry budget."""
         self.ontology = ontology
         self.selector = selector
         self.templates = templates

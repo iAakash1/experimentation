@@ -22,6 +22,7 @@ class TemplateLibrary:
     """
 
     def __init__(self, templates_path: str | Path, instructions_path: str | Path) -> None:
+        """Initialize the library with the caption template and instruction bank paths."""
         self.templates_path = Path(templates_path)
         self.instructions_path = Path(instructions_path)
 

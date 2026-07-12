@@ -2,7 +2,7 @@
 
 Mirrors the YAML files under ``configs/``. These models are concrete — they are
 the validated contract for configuration. Loading/merging behavior lives in
-:mod:`plantdx.config.loader` (stubbed until Milestone 2).
+:mod:`plantdx.config.loader`.
 """
 
 from __future__ import annotations
@@ -141,7 +141,14 @@ class AuditConfig(BaseModel):
     workers: int = 8  # thread-pool size for image inspection (I/O bound)
     supported_extensions: list[str] = Field(
         default_factory=lambda: [
-            ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff", ".webp",
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".bmp",
+            ".gif",
+            ".tif",
+            ".tiff",
+            ".webp",
         ]
     )
     near_duplicates: bool = False  # perceptual (average-hash) near-dup detection; decodes images

@@ -27,6 +27,7 @@ class ZeroShotEvaluator:
         splits: tuple[Split, ...],
         report_dir: str | Path,
     ) -> None:
+        """Initialize the evaluator with the target model, splits, and report dir."""
         self.model = model
         self.splits = splits
         self.report_dir = Path(report_dir)
