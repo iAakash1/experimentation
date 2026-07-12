@@ -146,7 +146,7 @@ pip install -e ".[train]"        # mlx, mlx-vlm
 
 ```bash
 plantdx --help                                   # top-level CLI
-plantdx ontology build   --config configs/config.yaml   # Milestone 2
+plantdx ontology         --config configs/config.yaml   # domain ontology (implemented)
 plantdx generate         --config configs/config.yaml   # Milestone 3
 plantdx validate         --config configs/config.yaml   # Milestone 3
 plantdx dataset build    --config configs/config.yaml   # Milestone 4

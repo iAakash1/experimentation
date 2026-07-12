@@ -6,6 +6,26 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added — Domain Ontology Compiler (CPU-only, deterministic)
+- `src/plantdx/ontology/domain/` — a deterministic `Ontology = f(DKB, Policies)` compiler
+  that turns the DKB into a typed knowledge graph: `models`, `policies` (fixed T-Box +
+  classification maps), `graph`, `builder`, `validator` (fail-closed V-ONT battery),
+  `statistics`, `serialization` (canonical JSON), `checksum` (content-only). Entry point
+  `plantdx.ontology.domain.compile_ontology`.
+- `plantdx ontology` CLI (flags `--config`, `--output`, `--validate-only`, `--stats-only`;
+  also `python -m plantdx ontology`). Writes six artifacts to `artifacts/ontology/`
+  (`ontology.json`, `concept_graph.json`, `concept_index.json`, `ontology_statistics.json`,
+  `ontology_checksum.txt`, `ontology_build.log`) — byte-identical across runs.
+- Tests under `tests/unit/ontology/` (`test_domain_*`): DKB loading, hierarchy/inheritance,
+  graph generation, ordering, checksum determinism, real-DKB golden-hash regression, and
+  every fail-closed validation mode. Docs: `docs/ONTOLOGY.md`.
+
+### Changed
+- Repurposed the `plantdx ontology` CLI command from a stub (`ontology build`) to the real
+  domain-ontology compiler. The M1 caption-ontology stubs (`plantdx.ontology.{builder,models,
+  concept_schema}`) are preserved unchanged; the domain compiler lives in the
+  `plantdx.ontology.domain` subpackage so no other package is affected.
+
 ### Added — Milestone 2.1: Dataset Normalization Engine (CPU-only, filesystem)
 - `src/plantdx/normalization/` — copies the tomato + mango classes from the immutable
   raw datasets into `datasets/<crop>/processed/<canonical_class>/`; structure-agnostic

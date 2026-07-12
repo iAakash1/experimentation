@@ -27,7 +27,17 @@ reviewable body of work; scope PRs to a single milestone.
   checksum, and never modifies `raw/`. Unit tests cover layout detection, extraction,
   dedup/collision, checksum verification, and report generation.
 
-## M2b — Ontology + Vocabulary + Symptom Lexicon (DKB → ontology)
+## M2.2 — Domain Ontology Compiler ✅ (implemented)
+- CPU-only, deterministic `Ontology = f(DKB, Policies)`. Compiles the DKB into a
+  typed knowledge graph (`src/plantdx/ontology/domain/`) and writes six artifacts
+  to `artifacts/ontology/`. Design: [`ontology_design/`](../ontology_design/); usage:
+  [ONTOLOGY.md](ONTOLOGY.md). Distinct from the caption-concept model in
+  `plantdx.ontology` (M2b below).
+- **Acceptance:** `plantdx ontology` builds + validates (fail-closed) the 18-condition
+  graph; repeated builds are byte-identical (content-hash pinned); unit tests cover
+  hierarchy, graph generation, ordering, checksum, and every validation-failure mode.
+
+## M2b — Caption concept model + Vocabulary + Symptom Lexicon (a view over the ontology)
 - Implement `DKBLoader`, `OntologyBuilder` (A), `VocabularyBuilder` (B),
   `SymptomLexiconBuilder` (C), and the derivation rules (doc 01 §3.2), overrides
   (doc 01 §6), and self-checks (doc 01 §8).

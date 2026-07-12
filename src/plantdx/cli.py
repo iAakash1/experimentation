@@ -10,7 +10,7 @@ Usage:
     plantdx --version
     plantdx audit            --config configs/config.yaml   [--dataset tomato|mango|all] [--reports-dir DIR]
     plantdx normalize        --config configs/config.yaml   [--dataset tomato|mango|all] [--mode copy|link]
-    plantdx ontology build   --config configs/config.yaml
+    plantdx ontology         --config configs/config.yaml   [--output DIR] [--validate-only] [--stats-only]
     plantdx vocabulary build --config configs/config.yaml
     plantdx generate         --config configs/config.yaml
     plantdx validate         --config configs/config.yaml
@@ -88,10 +88,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Override the placement mode (default: normalization.mode)",
     )
 
-    # ontology build
-    p_onto = sub.add_parser("ontology", help="Build the caption ontology (M2)")
-    onto_sub = p_onto.add_subparsers(dest="subcommand", metavar="<subcommand>")
-    _add_config(onto_sub.add_parser("build", help="Derive ontology from the DKB"))
+    # ontology (domain ontology compiler — implemented)
+    p_onto = sub.add_parser(
+        "ontology", help="Compile the domain ontology from the DKB (CPU-only, deterministic)"
+    )
+    _add_config(p_onto)
+    p_onto.add_argument(
+        "--output", default=None, help="Output directory (default: artifacts/ontology)"
+    )
+    p_onto.add_argument(
+        "--validate-only", action="store_true", help="Compile and validate; write no artifacts"
+    )
+    p_onto.add_argument(
+        "--stats-only", action="store_true", help="Compile, validate, print statistics; write nothing"
+    )
 
     # vocabulary build
     p_vocab = sub.add_parser("vocabulary", help="Build vocabulary + symptom lexicon (M2)")
@@ -198,6 +208,55 @@ def _run_normalize(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_ontology(args: argparse.Namespace) -> int:
+    """Handle ``plantdx ontology`` (domain ontology compiler). Returns an exit code."""
+    import json
+    from pathlib import Path
+
+    from plantdx.config import load_config
+    from plantdx.core.exceptions import PlantDxError
+    from plantdx.ontology.domain import (
+        compile_ontology,
+        compute_statistics,
+        validate_ontology,
+        write_artifacts,
+    )
+    from plantdx.ontology.domain.validator import OntologyValidationError
+
+    try:
+        config = load_config(args.config)
+        result = compile_ontology(Path(config.paths.knowledge_base["dkb_json"]))
+    except PlantDxError as exc:  # config error or DKB load/validate error
+        print(f"plantdx ontology: {exc}", file=sys.stderr)
+        return 2
+
+    try:
+        validate_ontology(result)
+    except OntologyValidationError as exc:
+        print(f"plantdx ontology: {exc}", file=sys.stderr)
+        return 1
+
+    stats = compute_statistics(result, "valid")
+    checksum = result.ontology.provenance["content_hash"]
+
+    if args.stats_only:
+        print(json.dumps(stats, indent=2, sort_keys=True))
+        return 0
+    if args.validate_only:
+        print(f"ontology valid: {stats['concept_count']} concepts, "
+              f"{stats['edge_count']} edges, checksum {checksum}")
+        return 0
+
+    out_dir = (Path(args.output) if args.output
+               else Path(config.paths.artifact_root) / config.paths.artifacts["ontology_dir"])
+    written = write_artifacts(result, out_dir, stats)
+    print(f"Ontology compiled: {stats['concept_count']} concepts, {stats['edge_count']} edges, "
+          f"{stats['condition_concepts']} conditions ({stats['disease_concepts']} diseases).")
+    print(f"Checksum: {checksum}")
+    print(f"Artifacts written to {out_dir}/ ({len(written)} files).")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point. Returns a process exit code."""
     parser = build_parser()
@@ -211,6 +270,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_audit(args)
     if args.command == "normalize":
         return _run_normalize(args)
+    if args.command == "ontology":
+        return _run_ontology(args)
 
     try:
         _not_implemented(args.command)
