@@ -33,16 +33,24 @@ Domain Ontology Compiler ──► typed knowledge graph (deterministic, content
 Vocabulary + Symptom Lexicon Compiler ──► controlled vocabulary + bounded lexicon
         │
         ▼
-[ next: caption concept model → Template Builder → Caption Generation Engine →
-  Validation → Instruction Dataset Builder → QLoRA Fine-tuning → Evaluation ]
+Caption Concept Model ──► Template Engine ──► Sentence Planner ──► Caption Generator
+        │                                                              │
+        ▼                                                              ▼
+Caption Validator ──► Corpus Builder ──► caption corpus ──► Dataset Exporters
+        │
+        ▼
+[ next: image grounding + instruction pairing → per-model VLM converters →
+  QLoRA Fine-tuning → Evaluation ]
 
 Raw datasets ──► Dataset Audit Engine ──► Dataset Normalization Engine
                                             ──► canonical datasets/<crop>/processed/
 ```
 
-Four independent, CPU-only pipeline stages are implemented today; everything
-from the caption concept model onward is still a typed interface stub
+Eight independent, CPU-only pipeline stages are implemented today; everything
+from image grounding onward is still a typed interface stub
 (`raise NotImplementedError`), by design — see [Current Status](#current-status).
+The M3 caption corpus is **disease-level and image-independent** — a pure function
+of the ontology, vocabulary, lexicon, and templates.
 
 ## Implemented today
 
@@ -52,20 +60,23 @@ from the caption concept model onward is still a typed interface stub
 | **Dataset Normalization Engine** | `plantdx normalize` | Extracts and canonicalizes tomato/mango classes from the raw datasets into `datasets/<crop>/processed/<class>/`. Raw datasets are never modified. |
 | **Domain Ontology Compiler** | `plantdx ontology` | Compiles `knowledge_base/dkb.json` into a typed, evidence-linked knowledge graph. Fail-closed validation; deterministic, content-hashed output. |
 | **Vocabulary + Symptom Lexicon Compiler** | `plantdx vocabulary` | Projects the domain ontology into a controlled vocabulary and a bounded symptom lexicon, every item traceable back to its ontology node, DKB disease(s), and evidence. Fail-closed validation; deterministic, content-hashed output. |
+| **Caption Concept Model** | `plantdx concepts` | Derives, per disease, the mandatory/optional/forbidden concept sets, ordering, information budget, register policy, and per-concept controlled realizations + evidence. Fail-closed `V-CON-*` validation; deterministic, content-hashed. |
+| **Template Engine** | `plantdx templates` | Loads, validates, and indexes the authored caption templates (syntax only; slots name concepts). Fail-closed `V-TPL-*` validation. |
+| **Caption corpus** | `plantdx generate` / `validate` / `corpus` | Deterministically plans → generates → independently validates (`V-CAP-*`) → assembles a per-disease, image-free caption corpus, and reshapes it into `generic`/`llava`/`paligemma`/`blip2`/`messages` export formats. |
 
-All four are CPU-only, fully deterministic (byte-identical output from the
+All eight are CPU-only, fully deterministic (byte-identical output from the
 same inputs), and covered by CI (`ruff check`, `ruff format --check`,
 `pytest`, `mypy` — all green).
 
 ## Not yet implemented
 
-Everything downstream of the vocabulary compiler: the caption concept model
-(a deterministic view over the domain ontology), the Template Builder, the
-Caption Generation Engine, the 12-stage caption Validation Engine, the
-Instruction Dataset Builder (splits + per-model converters), QLoRA training,
-and evaluation. These exist today only as typed package interfaces with
-`NotImplementedError` bodies — the public API shape is fixed, the logic is
-not written. **The caption concept model + Caption Generation Engine is next.**
+Everything downstream of the caption corpus: **image grounding** (cross-joining
+captions with the normalized image datasets), instruction pairing, image-based
+splits, the image-grounded per-model VLM converters (Qwen2.5-VL/Qwen3-VL/
+InternVL3/Gemma-3/MLX, `CONVERTER_REGISTRY`), QLoRA training, and evaluation.
+These exist today only as typed package interfaces with `NotImplementedError`
+bodies — the public API shape is fixed, the logic is not written. **Image
+grounding + the Instruction Dataset Builder is next.**
 
 ## Repository layout
 
@@ -76,7 +87,7 @@ caption_framework/       Stage 2 — the caption-generation design spec (FINAL; 
 ontology_design/         Stage 3 — the domain-ontology design spec (FINAL; no code)
 configs/                 all pipeline configuration (YAML)
 tests/                   mirrors src/plantdx/
-docs/                    developer docs, including AUDIT.md, NORMALIZATION.md, ONTOLOGY.md, VOCABULARY.md, KNOWN_ISSUES.md
+docs/                    developer docs: AUDIT.md, NORMALIZATION.md, ONTOLOGY.md, VOCABULARY.md, CONCEPTS.md, CORPUS.md, KNOWN_ISSUES.md
 artifacts/, datasets/    generated outputs (gitignored; regenerable from source + config)
 tomato/raw/, mango/raw/  the two raw datasets (gitignored; immutable, never edited by the pipeline)
 ```
@@ -142,11 +153,13 @@ plantdx audit                    # inventory the raw datasets
 plantdx normalize --dataset mango  # build the canonical normalized mango dataset
 plantdx ontology                  # compile the DKB into the knowledge graph
 plantdx vocabulary                 # derive the vocabulary + symptom lexicon from the ontology
+plantdx concepts                   # derive the per-disease Caption Concept Model
+plantdx corpus                     # build the caption corpus + dataset exporters
 ```
 
-See `docs/AUDIT.md`, `docs/NORMALIZATION.md`, `docs/ONTOLOGY.md`, and
-`docs/VOCABULARY.md` for full usage of each implemented stage, and
-`docs/ROADMAP.md` for the complete milestone plan.
+See `docs/AUDIT.md`, `docs/NORMALIZATION.md`, `docs/ONTOLOGY.md`,
+`docs/VOCABULARY.md`, `docs/CONCEPTS.md`, and `docs/CORPUS.md` for full usage of
+each implemented stage, and `docs/ROADMAP.md` for the complete milestone plan.
 
 ## Known issues
 

@@ -54,7 +54,10 @@ paths:
   artifacts:
     ontology_dir: ontology                      # caption_ontology.json, concept_schema.json, build report
     vocabulary_dir: vocabulary                  # derived allowed_terms/, never_appear/, symptom_lexicon.json
+    concepts_dir: concepts                      # concept_models.json (Caption Concept Model, component A)
     templates_dir: templates                    # template_index.json (derived index)
+    corpus_dir: corpus                          # captions.json/jsonl/csv (disease-level caption corpus)
+    exports_dir: exports                        # per-format dataset exports (<format>/data.jsonl)
     generation_dir: generation                  # provenance/<library_version>/
     validators_dir: validators                  # reports/<library_version>/
     captions_dir: captions                      # raw/, caption_library.jsonl

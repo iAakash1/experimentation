@@ -8,32 +8,34 @@ How the `src/plantdx/` code maps to the caption-framework specification
 
 | Spec component | Package / module | Interface class | Milestone |
 |----------------|------------------|-----------------|-----------|
-| — DKB loader | `knowledge_base/loader.py` | `DKBLoader` | M3 |
+| — DKB loader | `knowledge_base/loader.py` | `DKBLoader` | M4 |
 | — Domain ontology substrate | `ontology/domain/` | `compile_ontology` | M2.2 ✅ |
 | — Domain vocabulary substrate | `vocabulary/domain/` | `build_vocabulary_result` | M2b ✅ |
-| (A) Ontology Builder (caption-concept view) | `ontology/builder.py` | `OntologyBuilder` | M3 |
-| (B) Vocabulary Builder | `vocabulary/builder.py` | `VocabularyBuilder` | M3 |
-| (C) Symptom Lexicon Builder | `vocabulary/lexicon.py` | `SymptomLexiconBuilder` | M3 |
-| (D) Concept Selector | `generation/selector.py` | `ConceptSelector` | M3 |
-| (E) Template Library | `generation/templates.py` | `TemplateLibrary` | M3 |
-| (F) Slot Realizer + Expander | `generation/realizer.py`, `vocabulary/expander.py` | `SlotRealizer`, `VocabularyExpander` | M3 |
-| (G) Validator Battery | `validation/battery.py`, `validation/validators.py` | `ValidatorBattery`, `V1..V12` | M3 |
-| (H) Dedup + Diversity | `diversity/deduplicator.py`, `diversity/controller.py`, `diversity/metrics.py` | `Deduplicator`, `DiversityController`, `DiversityEvaluator` | M3 |
-| (I) Emitter | `dataset/emitter.py` | `Emitter` | M4 |
-| Orchestrator | `generation/engine.py` | `CaptionEngine` | M3 |
+| (A) Caption Concept Model | `concepts/` | `build_concept_models` | M3 ✅ |
+| (B) Vocabulary Builder | `vocabulary/domain/` | `build_vocabulary_result` | M2b ✅ |
+| (C) Symptom Lexicon Builder | `vocabulary/domain/lexicon.py` | `build_lexicon` | M2b ✅ |
+| (E) Template Engine | `templates/` | `load_library`, `compatible` | M3 ✅ |
+| (D/F) Sentence Planner + Generator | `corpus/planner.py`, `corpus/generator.py` | `plan_caption`, `generate` | M3 ✅ |
+| (G) Caption Validator | `corpus/validator.py` | `validate_caption` (`V-CAP-1..12`) | M3 ✅ |
+| (H/I) Corpus Builder | `corpus/builder.py` | `build_corpus` | M3 ✅ |
+| Dataset Exporters | `exporters/` | `write_all` (generic/llava/paligemma/blip2/messages) | M3 ✅ |
+| Image grounding + Emitter | `dataset/emitter.py` | `Emitter` | M4 |
 | Splits | `dataset/splits.py` | `SplitBuilder` | M4 |
-| Converters | `dataset/converters.py` | `BaseConverter` + 5 subclasses + `CONVERTER_REGISTRY` | M4 |
+| Per-model VLM converters | `dataset/converters.py` | `BaseConverter` + 5 subclasses + `CONVERTER_REGISTRY` | M4 |
 | QA | `qa/*` | `AuditSampler`, `ReviewStore`, `AcceptanceEvaluator` | M4 |
 | Training | `training/*` | `MLXVLMRunner`, `QLoRASettings` | M5 |
 | Evaluation | `evaluation/*` | `ZeroShotEvaluator`, `ComparisonReporter` | M6 |
 
-> Components (B) and (C) as originally specified would consume the caption-concept
-> ontology from component (A). Since (A) doesn't exist yet, M2b instead implemented
-> their functionality directly against the **domain ontology substrate**
-> (`vocabulary/domain/`, `plantdx vocabulary`) — a deterministic re-founding, not a
-> redesign (`ontology_design/01_architecture.md` §1.5). The `vocabulary/builder.py`/
-> `vocabulary/lexicon.py` stub rows above are the original spec-shaped interfaces and
-> remain unimplemented; they are not required for the pipeline to proceed.
+> **M3 built a disease-level, image-independent language layer.** The Caption
+> Concept Model (A) is derived from the DKB cross-linked to the ontology/vocabulary
+> (doc 01), and the corpus is a pure function of concept models + templates — no
+> images, no instruction pairing, no splits. Those (and the image-grounded per-model
+> VLM converters in the tested `CONVERTER_REGISTRY`) are M4. The M1 stub modules
+> `generation/*`, `validation/*`, `diversity/*`, `dataset/{emitter,converters,...}`
+> and the image-grounded `core.types.CaptionRecord` remain untouched, awaiting M4 —
+> the new work lives in the fresh `concepts/`, `templates/`, `corpus/`, `exporters/`
+> packages (the same "new package coexists with old stub" pattern as
+> `ontology/domain/` and `vocabulary/domain/`).
 
 Supporting layers: `core/` (types, enums, exceptions, seeding — a leaf package
 depending only on stdlib), `config/` (typed schema + loader), `utils/` (hashing,

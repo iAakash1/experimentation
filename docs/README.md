@@ -15,6 +15,8 @@ implements it.
 | [NORMALIZATION.md](NORMALIZATION.md) | The Dataset Normalization Engine (`plantdx normalize`): usage, artifacts, guarantees. |
 | [ONTOLOGY.md](ONTOLOGY.md) | The Domain Ontology Compiler (`plantdx ontology`): usage, artifacts, exit codes. |
 | [VOCABULARY.md](VOCABULARY.md) | The Vocabulary + Symptom Lexicon Compiler (`plantdx vocabulary`): usage, artifacts, validation battery. |
+| [CONCEPTS.md](CONCEPTS.md) | The Caption Concept Model compiler (`plantdx concepts`): usage, artifacts, `V-CON-*` battery. |
+| [CORPUS.md](CORPUS.md) | The language layer (`plantdx templates/generate/validate/corpus`): planner, generator, validators, exporters. |
 | [ROADMAP.md](ROADMAP.md) | Milestones and their acceptance criteria. |
 | [KNOWN_ISSUES.md](KNOWN_ISSUES.md) | Known, intentionally deferred issues. |
 | [adr/](adr/) | Architecture Decision Records. |

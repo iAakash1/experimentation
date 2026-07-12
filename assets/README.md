@@ -7,7 +7,7 @@ re-validation/QA.
 
 | Path | Contents | Populated in | Spec |
 |------|----------|--------------|------|
-| `templates/templates.json` | The 52 caption templates (syntax only). | M3 | doc 02 §3 |
+| `templates/templates.json` | The caption templates (syntax only; 30 across the 8 doc-02 families, structured-segment schema). | M3 ✅ | doc 02 §3 |
 | `templates/instructions.json` | Instruction bank (≥6 paraphrases × task type). | M4 | doc 04 §4 |
 | `templates/scaffold_lexicon.json` | Fixed template glue words allowed by validator V4. | M3 | doc 03 V4 |
 | `vocabulary/synonyms.json` | Synonym equivalence classes. | M2 | doc 01 §7.1 |

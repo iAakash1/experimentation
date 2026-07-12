@@ -6,6 +6,43 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added — M3: Caption Concept Model + Template Engine + Caption Corpus + Exporters (CPU-only, deterministic, image-free)
+- `src/plantdx/concepts/` — the **Caption Concept Model** compiler (component A):
+  `ConceptModels = f(DKB, Ontology, Vocabulary)`. Per disease, derives the
+  mandatory/optional/forbidden concept sets (20-concept taxonomy), canonical ordering,
+  information budget, register policy, sign type, per-concept controlled realizations +
+  evidence, and the `never_appear` set. Fail-closed `V-CON-1..11` battery. Entry point
+  `plantdx.concepts.build_concept_models`; CLI `plantdx concepts`; artifacts in
+  `artifacts/concepts/`. `lesion_size` is omitted (no controlled DKB vocabulary) and
+  `severity_stage`/`management` are always forbidden (severity/observability honesty).
+- `src/plantdx/templates/` + `assets/templates/templates.json` — the **Template Engine**
+  (component E): 30 authored templates across the 8 doc-02 families, using a structured
+  segment schema (`lit`/`slot`/`opt`/`list`) so optional-slot deletion is grammatical by
+  construction. Fail-closed `V-TPL-1..8` battery; `compatible()` routing; CLI
+  `plantdx templates`; `artifacts/templates/template_index.json`.
+- `src/plantdx/corpus/` — the **Sentence Planner**, **Caption Generator**, **Caption
+  Validator** (independent 12-check `V-CAP-1..12` battery), and **Corpus Builder**.
+  Deterministically enumerates a bounded, de-duplicated, validated per-disease caption
+  corpus (1,070 captions from the real DKB); drops-and-records failing candidates and
+  hard-errors on a disease with zero valid captions. CLI `plantdx generate|validate|corpus`
+  (with `--condition`/`--crop`/`--format`/`--all`); artifacts `captions.{json,jsonl,csv}` +
+  stats + validation report + checksum in `artifacts/corpus/`. Every caption carries its
+  full source-checksum pin (ontology, vocabulary, concepts, templates) and evidence chain.
+- `src/plantdx/exporters/` — **Dataset Exporters**: pure reshapers of the one corpus into
+  `generic`/`llava`/`paligemma`/`blip2`/`messages` formats (deterministic, byte-identical),
+  each with a `manifest.json`. CLI `plantdx corpus --format <F>` / `--all`.
+- `configs/paths.yaml`: new `artifacts.{concepts_dir,corpus_dir,exports_dir}` keys.
+- Tests under `tests/unit/{concepts,templates,corpus,exporters}/` (build, validation-failure,
+  determinism/golden-hash, generation grammar, CLI end-to-end) plus two unskipped M3
+  integration tests (forbidden-term absence, bit-for-bit reproducibility). Docs:
+  `docs/CONCEPTS.md`, `docs/CORPUS.md`.
+- **Scope decision (deliberate):** this milestone builds the *disease-level*,
+  image-independent corpus. Image cross-join, instruction pairing, image-based splits, and
+  the image-grounded per-model VLM converters (`CONVERTER_REGISTRY`) remain M4; the M1
+  image-grounded stubs (`generation/*`, `validation/*`, `diversity/*`,
+  `dataset/{emitter,converters}`, `core.types.CaptionRecord`) are untouched. The ontology
+  and vocabulary golden `content_hash`es were verified unchanged.
+
 ### Added — Vocabulary Builder + Symptom Lexicon Compiler (CPU-only, deterministic)
 - `src/plantdx/vocabulary/domain/` — a deterministic `Vocabulary = f(Ontology, Policies)`
   compiler that projects the compiled domain ontology (never the DKB directly) into a

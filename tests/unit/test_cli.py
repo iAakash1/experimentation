@@ -30,8 +30,6 @@ def test_no_command_prints_help_and_succeeds() -> None:
 @pytest.mark.parametrize(
     "argv",
     [
-        ["generate"],
-        ["validate"],
         ["dataset", "build"],
         ["dataset", "convert", "--model", "qwen3_vl"],
         ["qa", "sample"],
@@ -43,3 +41,20 @@ def test_stubbed_commands_exit_two(argv: list[str], capsys: pytest.CaptureFixtur
     # Stubbed stages return exit code 2 with a milestone message (not a traceback).
     assert main(argv) == 2
     assert "Milestone" in capsys.readouterr().err
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["concepts", "--stats-only"],
+        ["templates", "--validate-only"],
+        ["generate", "--stats-only"],
+        ["generate", "--condition", "tomato_early_blight", "--validate-only"],
+        ["validate", "--crop", "mango"],
+    ],
+)
+def test_new_commands_parse(argv: list[str]) -> None:
+    # The M3 language-layer commands parse into the expected top-level command.
+    args = build_parser().parse_args(argv)
+    assert args.command == argv[0]

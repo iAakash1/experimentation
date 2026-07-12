@@ -53,20 +53,31 @@ reviewable body of work; scope PRs to a single milestone.
   (content-hash pinned); unit tests cover category coverage, bounded symptom realizations,
   dedup, traceability, and every `V-VOC-*` validation-failure mode.
 
-## M3 — Caption concept model + Caption Generation Engine + Validation Engine
-- Implement `DKBLoader`, `OntologyBuilder` (A, the caption-concept view over the domain
-  ontology — doc 01 §3.2 derivation rules, §6 overrides, §8 self-checks), components D–H,
-  the `CaptionEngine` loop (doc 00 §3), the 12 validators (doc 03), the expander lattice
-  (doc 01 §7, Vocabulary Expansion — component F, consuming the M2b vocabulary), seeding,
-  diversity metrics/gates.
-- **Acceptance:** caption-concept ontology is a pure projection of the domain ontology;
-  build self-checks pass for all 18 classes; deterministic bit-for-bit regeneration; zero
-  forbidden terms in accepted captions; fallback rate ≤ 2%; diversity hard-gates pass on a
-  pilot corpus; the generation/reproducibility integration tests unskipped.
+## M3 — Caption Concept Model + Template Engine + Corpus + Exporters ✅ (implemented)
+- CPU-only, deterministic, **image-independent** language layer. Implements the Caption
+  Concept Model (component A, `src/plantdx/concepts/`, `plantdx concepts`), the Template
+  Engine (`src/plantdx/templates/`, authored `assets/templates/templates.json`,
+  `plantdx templates`), the Sentence Planner + Caption Generator + Caption Validator +
+  Corpus Builder (`src/plantdx/corpus/`, `plantdx generate|validate|corpus`), and the
+  Dataset Exporters (`src/plantdx/exporters/`). Usage: [CONCEPTS.md](CONCEPTS.md),
+  [CORPUS.md](CORPUS.md). Produces a per-disease caption corpus (`artifacts/corpus/`)
+  reshaped into `generic`/`llava`/`paligemma`/`blip2`/`messages` formats.
+- **Design note.** This milestone deliberately scopes to the *disease-level* corpus (a pure
+  function of ontology + vocabulary + lexicon + templates). Image cross-join, instruction
+  pairing, and the image-grounded per-model VLM converters move to M4. The concept model
+  is derived from the DKB cross-linked to the ontology/vocabulary (doc 01), not a pure
+  ontology view, because the domain ontology does not preserve the fine concept typing.
+- **Acceptance:** deterministic bit-for-bit corpus (content-hash pinned); zero forbidden
+  terms and zero severity-stage tokens in any accepted caption; every disease yields ≥1
+  valid caption or the build hard-errors; unit + integration tests cover the concept model,
+  templates, planner/generator, every `V-CON-*`/`V-TPL-*`/`V-CAP-*` failure mode, exporters,
+  and the CLI; the two M3 generation/reproducibility integration tests are unskipped.
 
-## M4 — Instruction Dataset Builder + splits + converters + QA
-- Implement `Emitter` (I), `SplitBuilder`, `LabelResolver`, `InstructionBank`,
-  the 5 converters, and the QA sampling/review/acceptance modules.
+## M4 — Image grounding + Instruction Dataset Builder + splits + converters + QA
+- Cross-join the disease-level corpus with the normalized image datasets; implement the
+  instruction bank + `(instruction, image, response)` pairing, `Emitter` (I),
+  `SplitBuilder`, `LabelResolver`, the image-grounded per-model converters
+  (`CONVERTER_REGISTRY`: Qwen2.5-VL/Qwen3-VL/InternVL3/Gemma-3/MLX), and QA.
 - **Acceptance:** image-grouped stratified splits; all converters preserve
   response text and validate their lines; QA acceptance rule + kappa computed;
   converter/split integration tests unskipped.

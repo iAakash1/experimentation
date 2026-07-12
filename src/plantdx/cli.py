@@ -16,8 +16,16 @@ Usage:
                               [--output DIR] [--validate-only] [--stats-only]
     plantdx vocabulary       --config configs/config.yaml
                               [--output DIR] [--validate-only] [--stats-only]
+    plantdx concepts         --config configs/config.yaml
+                              [--output DIR] [--validate-only] [--stats-only]
+    plantdx templates        --config configs/config.yaml
+                              [--output DIR] [--validate-only] [--stats-only]
     plantdx generate         --config configs/config.yaml
-    plantdx validate         --config configs/config.yaml
+                              [--condition ID] [--crop tomato|mango]
+                              [--output DIR] [--validate-only] [--stats-only]
+    plantdx validate         --config configs/config.yaml [--condition ID] [--crop C]
+    plantdx corpus           --config configs/config.yaml
+                              [--condition ID] [--crop C] [--format F | --all]
     plantdx dataset build    --config configs/config.yaml
     plantdx dataset convert  --model qwen3_vl
     plantdx qa sample        --config configs/config.yaml
@@ -30,12 +38,12 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
 
 from plantdx.__about__ import __version__
 
 _MILESTONE = {
-    "generate": "Milestone 3",
-    "validate": "Milestone 3",
     "dataset": "Milestone 4",
     "qa": "Milestone 4",
     "train": "Milestone 5",
@@ -129,9 +137,52 @@ def build_parser() -> argparse.ArgumentParser:
         help="Compile, validate, print statistics; write nothing",
     )
 
-    # generate / validate
-    _add_config(sub.add_parser("generate", help="Generate the caption library (M3)"))
-    _add_config(sub.add_parser("validate", help="Validate the caption library (M3)"))
+    # concepts (Caption Concept Model compiler — implemented)
+    p_con = sub.add_parser(
+        "concepts", help="Derive the per-disease Caption Concept Model (CPU-only, deterministic)"
+    )
+    _add_config(p_con)
+    p_con.add_argument("--output", default=None, help="Override output directory")
+    p_con.add_argument("--validate-only", action="store_true", help="Build+validate; write nothing")
+    p_con.add_argument("--stats-only", action="store_true", help="Build+validate; print stats")
+
+    # templates (Template Engine — implemented)
+    p_tpl = sub.add_parser(
+        "templates", help="Validate + index the authored caption template library (CPU-only)"
+    )
+    _add_config(p_tpl)
+    p_tpl.add_argument("--output", default=None, help="Override output directory")
+    p_tpl.add_argument("--validate-only", action="store_true", help="Validate; write no artifacts")
+    p_tpl.add_argument("--stats-only", action="store_true", help="Validate; print statistics")
+
+    def _add_corpus_filters(p: argparse.ArgumentParser) -> None:
+        p.add_argument("--condition", default=None, help="Restrict to one disease id")
+        p.add_argument("--crop", default=None, help="Restrict to one crop (tomato|mango)")
+
+    # generate (build the caption corpus — implemented)
+    p_gen = sub.add_parser(
+        "generate", help="Generate the deterministic caption corpus (CPU-only, image-free)"
+    )
+    _add_config(p_gen)
+    _add_corpus_filters(p_gen)
+    p_gen.add_argument("--output", default=None, help="Override output directory")
+    p_gen.add_argument("--validate-only", action="store_true", help="Build+validate; write nothing")
+    p_gen.add_argument("--stats-only", action="store_true", help="Build+validate; print stats")
+
+    # validate (independent caption validation — implemented)
+    p_val = sub.add_parser("validate", help="Build + independently validate the caption corpus")
+    _add_config(p_val)
+    _add_corpus_filters(p_val)
+
+    # corpus (build corpus + dataset exporters — implemented)
+    p_corp = sub.add_parser("corpus", help="Build the corpus and write dataset exporters")
+    _add_config(p_corp)
+    _add_corpus_filters(p_corp)
+    p_corp.add_argument("--output", default=None, help="Override output directory")
+    p_corp.add_argument(
+        "--format", default=None, help="Export only this format (see --all for every format)"
+    )
+    p_corp.add_argument("--all", action="store_true", help="Export all formats (the default)")
 
     # dataset build / convert
     p_ds = sub.add_parser("dataset", help="Build splits and convert per-model datasets (M4)")
@@ -370,6 +421,222 @@ def _run_vocabulary(args: argparse.Namespace) -> int:
     return 0
 
 
+class _Bundle:
+    """Small carrier for the compiled upstream pipeline (CLI-internal)."""
+
+    def __init__(
+        self, config: Any, ontology: Any, vocab: Any, models: Any, concepts_report: Any
+    ) -> None:
+        self.config = config
+        self.ontology = ontology
+        self.vocab = vocab
+        self.models = models
+        self.concepts_report = concepts_report
+        self.corpus: Any = None
+        self.corpus_report: Any = None
+
+
+def _artifact_dir(config: Any, key: str, override: str | None) -> Path:
+    """Resolve an artifact output directory from config or a CLI ``--output`` override."""
+    if override:
+        return Path(override)
+    root = Path(str(config.paths.artifact_root))
+    return root / str(config.paths.artifacts[key])
+
+
+def _compile_concepts(config_path: str) -> _Bundle:
+    """Build ontology -> vocabulary -> concept models (validated). Returns a bundle."""
+    from plantdx.concepts import build_concept_models, validate_concept_models
+    from plantdx.config import load_config
+    from plantdx.ontology.domain import compile_ontology, validate_ontology
+    from plantdx.vocabulary.domain import build_vocabulary_result, validate_vocabulary_result
+
+    config = load_config(config_path)
+    onto = compile_ontology(Path(config.paths.knowledge_base["dkb_json"]))
+    validate_ontology(onto)
+    vocab = build_vocabulary_result(onto.ontology)
+    validate_vocabulary_result(vocab, onto.ontology)
+    models = build_concept_models(onto.dkb, onto.ontology, vocab)
+    report = validate_concept_models(models, onto.ontology, vocab)
+    return _Bundle(config, onto.ontology, vocab, models, report)
+
+
+def _run_concepts(args: argparse.Namespace) -> int:
+    """Handle ``plantdx concepts`` (Caption Concept Model compiler)."""
+    import json
+
+    from plantdx.concepts import compute_statistics, write_artifacts
+    from plantdx.concepts.validator import ConceptValidationError
+    from plantdx.core.exceptions import PlantDxError
+
+    try:
+        b = _compile_concepts(args.config)
+    except ConceptValidationError as exc:
+        print(f"plantdx concepts: {exc}", file=sys.stderr)
+        return 1
+    except PlantDxError as exc:
+        print(f"plantdx concepts: {exc}", file=sys.stderr)
+        return 2
+
+    stats = compute_statistics(b.models, "valid")
+    checksum = b.models.provenance["content_hash"]
+    if args.stats_only:
+        print(json.dumps(stats, indent=2, sort_keys=True))
+        return 0
+    if args.validate_only:
+        print(f"concepts valid: {stats['disease_count']} disease models, checksum {checksum}")
+        return 0
+    out_dir = _artifact_dir(b.config, "concepts_dir", args.output)
+    written = write_artifacts(b.models, out_dir, stats, b.concepts_report)
+    print(f"Concept models compiled: {stats['disease_count']} diseases.")
+    print(f"Checksum: {checksum}")
+    print(f"Artifacts written to {out_dir}/ ({len(written)} files).")
+    return 0
+
+
+def _run_templates(args: argparse.Namespace) -> int:
+    """Handle ``plantdx templates`` (Template Engine)."""
+    import json
+
+    from plantdx.config import load_config
+    from plantdx.core.exceptions import PlantDxError
+    from plantdx.templates import (
+        compute_statistics,
+        load_library,
+        validate_library,
+        write_artifacts,
+    )
+    from plantdx.templates.validator import TemplateValidationError
+
+    try:
+        config = load_config(args.config)
+        library = load_library(config.paths.assets["templates"])
+        report = validate_library(library)
+    except TemplateValidationError as exc:
+        print(f"plantdx templates: {exc}", file=sys.stderr)
+        return 1
+    except PlantDxError as exc:
+        print(f"plantdx templates: {exc}", file=sys.stderr)
+        return 2
+
+    stats = compute_statistics(library, "valid")
+    if args.stats_only:
+        print(json.dumps(stats, indent=2, sort_keys=True))
+        return 0
+    if args.validate_only:
+        print(f"templates valid: {stats['template_count']} templates, hash {stats['content_hash']}")
+        return 0
+    out_dir = _artifact_dir(config, "templates_dir", args.output)
+    written = write_artifacts(library, out_dir, stats, report)
+    print(f"Templates validated + indexed: {stats['template_count']} templates.")
+    print(f"Checksum: {stats['content_hash']}")
+    print(f"Artifacts written to {out_dir}/ ({len(written)} files).")
+    return 0
+
+
+def _build_corpus_from_args(args: argparse.Namespace) -> _Bundle:
+    """Compile upstream, load templates, and build the (filtered) corpus."""
+    from plantdx.corpus import build_corpus
+    from plantdx.templates import load_library, validate_library
+
+    b = _compile_concepts(args.config)
+    library = load_library(b.config.paths.assets["templates"])
+    validate_library(library)
+    corpus, report = build_corpus(
+        b.models,
+        library,
+        condition=getattr(args, "condition", None),
+        crop=getattr(args, "crop", None),
+    )
+    b.corpus = corpus
+    b.corpus_report = report
+    return b
+
+
+def _run_generate(args: argparse.Namespace) -> int:
+    """Handle ``plantdx generate`` (build the caption corpus)."""
+    import json
+
+    from plantdx.core.exceptions import PlantDxError
+    from plantdx.corpus import compute_statistics, write_artifacts
+    from plantdx.corpus.builder import CorpusBuildError
+
+    try:
+        b = _build_corpus_from_args(args)
+    except (CorpusBuildError, PlantDxError) as exc:
+        print(f"plantdx generate: {exc}", file=sys.stderr)
+        return 1
+
+    stats = compute_statistics(b.corpus, "valid")
+    checksum = b.corpus.provenance["content_hash"]
+    if args.stats_only:
+        print(json.dumps(stats, indent=2, sort_keys=True))
+        return 0
+    if args.validate_only:
+        print(f"corpus valid: {stats['caption_count']} captions, checksum {checksum}")
+        return 0
+    out_dir = _artifact_dir(b.config, "corpus_dir", args.output)
+    written = write_artifacts(b.corpus, out_dir, stats, b.corpus_report)
+    print(
+        f"Caption corpus generated: {stats['caption_count']} captions across "
+        f"{stats['disease_count']} diseases."
+    )
+    print(f"Checksum: {checksum}")
+    print(f"Artifacts written to {out_dir}/ ({len(written)} files).")
+    return 0
+
+
+def _run_validate(args: argparse.Namespace) -> int:
+    """Handle ``plantdx validate`` (independent caption validation)."""
+    import json
+
+    from plantdx.core.exceptions import PlantDxError
+    from plantdx.corpus.builder import CorpusBuildError
+
+    try:
+        b = _build_corpus_from_args(args)
+    except (CorpusBuildError, PlantDxError) as exc:
+        print(f"plantdx validate: {exc}", file=sys.stderr)
+        return 1
+    print(json.dumps(b.corpus_report, indent=2, sort_keys=True))
+    return 0
+
+
+def _run_corpus(args: argparse.Namespace) -> int:
+    """Handle ``plantdx corpus`` (build corpus + dataset exporters)."""
+    from plantdx.core.exceptions import PlantDxError
+    from plantdx.corpus import compute_statistics, write_artifacts
+    from plantdx.corpus.builder import CorpusBuildError
+    from plantdx.exporters import FORMATS, write_all, write_export
+
+    try:
+        b = _build_corpus_from_args(args)
+    except (CorpusBuildError, PlantDxError) as exc:
+        print(f"plantdx corpus: {exc}", file=sys.stderr)
+        return 1
+    if args.format is not None and args.format not in FORMATS:
+        print(
+            f"plantdx corpus: unknown format '{args.format}'. Known: {', '.join(FORMATS)}",
+            file=sys.stderr,
+        )
+        return 1
+
+    stats = compute_statistics(b.corpus, "valid")
+    corpus_dir = _artifact_dir(b.config, "corpus_dir", args.output)
+    write_artifacts(b.corpus, corpus_dir, stats, b.corpus_report)
+    exports_dir = _artifact_dir(b.config, "exports_dir", None)
+    if args.format is not None:
+        write_export(b.corpus, args.format, exports_dir)
+        formats_written = [args.format]
+    else:
+        write_all(b.corpus, exports_dir)
+        formats_written = list(FORMATS)
+    print(f"Caption corpus built: {stats['caption_count']} captions -> {corpus_dir}/")
+    print(f"Exported formats {formats_written} -> {exports_dir}/")
+    print(f"Checksum: {b.corpus.provenance['content_hash']}")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point. Returns a process exit code."""
     parser = build_parser()
@@ -387,6 +654,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_ontology(args)
     if args.command == "vocabulary":
         return _run_vocabulary(args)
+    if args.command == "concepts":
+        return _run_concepts(args)
+    if args.command == "templates":
+        return _run_templates(args)
+    if args.command == "generate":
+        return _run_generate(args)
+    if args.command == "validate":
+        return _run_validate(args)
+    if args.command == "corpus":
+        return _run_corpus(args)
 
     try:
         _not_implemented(args.command)

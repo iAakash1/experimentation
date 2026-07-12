@@ -8,16 +8,17 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
 [![Code style: ruff](https://img.shields.io/badge/lint-ruff-black.svg)](.pre-commit-config.yaml)
 [![Types: mypy](https://img.shields.io/badge/types-mypy-blue.svg)](pyproject.toml)
-[![Status: M2b](https://img.shields.io/badge/status-milestone--2b-orange.svg)](docs/ROADMAP.md)
+[![Status: M3](https://img.shields.io/badge/status-milestone--3-orange.svg)](docs/ROADMAP.md)
 
 </div>
 
-> **Repository status — Milestone 2b.**
-> The dataset audit, dataset normalization, domain ontology compiler, and vocabulary +
-> symptom lexicon compiler are implemented (CPU-only, deterministic). The caption
-> generation pipeline (concept selection, templates, validation, dataset building,
-> training, evaluation) is defined as **typed interfaces only** and is implemented in
-> later milestones. See the [Roadmap](#roadmap).
+> **Repository status — Milestone 3.**
+> The dataset audit, dataset normalization, domain ontology compiler, vocabulary +
+> symptom lexicon compiler, **Caption Concept Model, Template Engine, caption corpus,
+> and dataset exporters** are implemented (CPU-only, deterministic). The M3 corpus is
+> a *disease-level*, image-independent caption library; image grounding, instruction
+> pairing, per-model VLM converters, QLoRA training, and evaluation are later
+> milestones (typed interfaces only). See the [Roadmap](#roadmap).
 
 ---
 
@@ -119,10 +120,14 @@ experiments/                      # repository root
 │   │   └── domain/               #   Domain Ontology Compiler (`plantdx ontology`)         [implemented]
 │   ├── vocabulary/               #   VocabularyExpander (F, caption-concept view)          [stub]
 │   │   └── domain/               #   Vocabulary + Symptom Lexicon Compiler (`plantdx vocabulary`) [implemented]
-│   ├── generation/                #   ConceptSelector (D), Templates (E), Realizer (F), Engine [stub]
-│   ├── validation/               #   12-stage ValidatorBattery (G)                        [stub]
+│   ├── concepts/                 #   Caption Concept Model (`plantdx concepts`, component A) [implemented]
+│   ├── templates/                #   Template Engine (`plantdx templates`, component E)    [implemented]
+│   ├── corpus/                   #   Planner + Generator + Validator + Corpus Builder (`plantdx generate`) [implemented]
+│   ├── exporters/                #   Dataset Exporters (`plantdx corpus --format`)         [implemented]
+│   ├── generation/                #   image-grounded ConceptSelector/Realizer/Engine (M4)  [stub]
+│   ├── validation/               #   image-grounded 12-stage ValidatorBattery (M4)         [stub]
 │   ├── diversity/                #   Deduplicator + DiversityController (H) + metrics      [stub]
-│   ├── dataset/                  #   Emitter (I), serialization, splits, converters        [stub]
+│   ├── dataset/                  #   Emitter (I), splits, per-model VLM converters (M4)     [stub]
 │   ├── qa/                       #   sampling, review, acceptance                          [stub]
 │   ├── training/                 #   QLoRA / mlx-vlm runners                               [stub]
 │   ├── evaluation/               #   zero-shot vs fine-tuned metrics                       [stub]
@@ -164,17 +169,21 @@ pip install -e ".[train]"        # mlx, mlx-vlm
 
 ## Quick Start
 
-> ⚠️ `audit`, `normalize`, `ontology`, and `vocabulary` are implemented (CPU-only, deterministic).
-> Later-stage commands still raise `NotImplementedError` until their milestone lands.
+> ⚠️ `audit`, `normalize`, `ontology`, `vocabulary`, `concepts`, `templates`, `generate`,
+> `validate`, and `corpus` are implemented (CPU-only, deterministic). Later-stage commands
+> still raise `NotImplementedError` until their milestone lands.
 
 ```bash
 plantdx --help                                           # top-level CLI
 plantdx audit             --config configs/config.yaml   # implemented — dataset audit
 plantdx normalize         --config configs/config.yaml   # implemented — dataset normalization
 plantdx ontology          --config configs/config.yaml   # implemented — domain ontology compiler
-plantdx vocabulary        --config configs/config.yaml   # implemented — vocabulary + symptom lexicon compiler
-plantdx generate          --config configs/config.yaml   # Milestone 3
-plantdx validate          --config configs/config.yaml   # Milestone 3
+plantdx vocabulary        --config configs/config.yaml   # implemented — vocabulary + symptom lexicon
+plantdx concepts          --config configs/config.yaml   # implemented — Caption Concept Model (component A)
+plantdx templates         --config configs/config.yaml   # implemented — Template Engine
+plantdx generate          [--condition ID] [--crop C]    # implemented — build the caption corpus
+plantdx validate          [--condition ID] [--crop C]    # implemented — independent caption validation
+plantdx corpus            [--format F | --all]           # implemented — corpus + dataset exporters
 plantdx dataset build     --config configs/config.yaml   # Milestone 4
 plantdx dataset convert   --model qwen3_vl                # Milestone 4
 plantdx train             --model qwen3_vl                # Milestone 5
@@ -197,7 +206,8 @@ validate_vocabulary_result(vocab, result.ontology)   # fail-closed; raises Vocab
 ```
 
 See [`docs/AUDIT.md`](docs/AUDIT.md), [`docs/NORMALIZATION.md`](docs/NORMALIZATION.md),
-[`docs/ONTOLOGY.md`](docs/ONTOLOGY.md), and [`docs/VOCABULARY.md`](docs/VOCABULARY.md) for each
+[`docs/ONTOLOGY.md`](docs/ONTOLOGY.md), [`docs/VOCABULARY.md`](docs/VOCABULARY.md),
+[`docs/CONCEPTS.md`](docs/CONCEPTS.md), and [`docs/CORPUS.md`](docs/CORPUS.md) for each
 implemented stage's full usage.
 
 ## Datasets
@@ -254,8 +264,8 @@ Released under the **Apache License 2.0** — see [`LICENSE`](LICENSE). Apache-2
 | **M2.1** | Dataset Normalization Engine (`plantdx normalize`) | ✅ done |
 | **M2.2** | Domain Ontology Compiler (`plantdx ontology`) | ✅ done |
 | **M2b** | Vocabulary + Symptom Lexicon Compiler (`plantdx vocabulary`, a view over the ontology) | ✅ done |
-| **M3** | Caption concept model (component A) + Caption Generation Engine + 12-stage Validation Engine | ⏳ next |
-| **M4** | Instruction Dataset Builder + splits + per-model converters | ⏳ |
+| **M3** | Caption Concept Model + Template Engine + caption corpus + exporters (disease-level, image-free) | ✅ done |
+| **M4** | Image grounding + Instruction Dataset Builder + splits + per-model VLM converters | ⏳ next |
 | **M5** | QLoRA fine-tuning (MLX) for all four models | ⏳ |
 | **M6** | Evaluation: zero-shot vs fine-tuned; diagnostic confusable-pair split | ⏳ |
 
