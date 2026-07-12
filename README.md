@@ -8,12 +8,16 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
 [![Code style: ruff](https://img.shields.io/badge/lint-ruff-black.svg)](.pre-commit-config.yaml)
 [![Types: mypy](https://img.shields.io/badge/types-mypy-blue.svg)](pyproject.toml)
-[![Status: scaffolding](https://img.shields.io/badge/status-milestone--1%20scaffold-orange.svg)](docs/ROADMAP.md)
+[![Status: M2b](https://img.shields.io/badge/status-milestone--2b-orange.svg)](docs/ROADMAP.md)
 
 </div>
 
-> **Repository status — Milestone 1 (scaffolding).**
-> This repository currently contains the full production structure, configuration, typed public APIs, and documentation. The pipeline stages (caption generation, validation, dataset building, training, evaluation) are defined as **typed interfaces only** and are implemented in later milestones. See the [Roadmap](#roadmap).
+> **Repository status — Milestone 2b.**
+> The dataset audit, dataset normalization, domain ontology compiler, and vocabulary +
+> symptom lexicon compiler are implemented (CPU-only, deterministic). The caption
+> generation pipeline (concept selection, templates, validation, dataset building,
+> training, evaluation) is defined as **typed interfaces only** and is implemented in
+> later milestones. See the [Roadmap](#roadmap).
 
 ---
 
@@ -45,11 +49,16 @@ Full argument: [`caption_framework/07_ieee_methodology_section.md`](caption_fram
 ## Architecture Diagram
 
 > This diagram shows the caption-generation pipeline (`caption_framework/`, still future work).
-> It is preceded in practice by three already-implemented, independent CPU-only stages —
+> It is preceded in practice by four already-implemented, independent CPU-only stages —
 > `plantdx audit` → `plantdx normalize` → `plantdx ontology` (the **domain** ontology compiler,
-> `ontology_design/`) — which inventory the raw datasets, produce the canonical normalized
-> datasets, and compile the DKB into a typed knowledge graph. The "Ontology Builder (A)" below
-> is the *caption-concept* model, a separate, not-yet-implemented downstream view over that graph.
+> `ontology_design/`) → `plantdx vocabulary` (the vocabulary + symptom lexicon compiler, a
+> deterministic projection of that graph) — which inventory the raw datasets, produce the
+> canonical normalized datasets, compile the DKB into a typed knowledge graph, and derive a
+> controlled vocabulary + bounded symptom lexicon from it. The "Ontology Builder (A)" below is
+> the *caption-concept* model, a separate, not-yet-implemented downstream view over that graph;
+> "Vocabulary Builder (B)" and "Symptom Lexicon (C)" below are already implemented against the
+> domain ontology directly (`plantdx.vocabulary.domain`), per `ontology_design/01_architecture.md`
+> §1.5's "re-founded, not redesigned" principle.
 
 ```
                 ┌──────────────────────────────────────────────┐
@@ -108,7 +117,8 @@ experiments/                      # repository root
 │   ├── knowledge_base/           #   DKB loader + record models (Stage 1 consumer)         [stub]
 │   ├── ontology/                 #   caption-concept model (OntologyBuilder, component A)  [stub]
 │   │   └── domain/               #   Domain Ontology Compiler (`plantdx ontology`)         [implemented]
-│   ├── vocabulary/               #   VocabularyBuilder (B), SymptomLexicon (C), Expander (F) [stub]
+│   ├── vocabulary/               #   VocabularyExpander (F, caption-concept view)          [stub]
+│   │   └── domain/               #   Vocabulary + Symptom Lexicon Compiler (`plantdx vocabulary`) [implemented]
 │   ├── generation/                #   ConceptSelector (D), Templates (E), Realizer (F), Engine [stub]
 │   ├── validation/               #   12-stage ValidatorBattery (G)                        [stub]
 │   ├── diversity/                #   Deduplicator + DiversityController (H) + metrics      [stub]
@@ -119,7 +129,7 @@ experiments/                      # repository root
 │   └── utils/                    #   io, hashing, logging, versioning                      [implemented]
 ├── configs/                      # config.yaml, paths.yaml, audit/normalization/generation/validation/training.yaml
 ├── assets/                       # AUTHORED inputs (templates, static vocab, label_map, overrides)
-├── artifacts/                    # GENERATED outputs (gitignored) — includes artifacts/ontology/
+├── artifacts/                    # GENERATED outputs (gitignored) — includes artifacts/ontology/, artifacts/vocabulary/
 ├── datasets/                     # GENERATED, normalized canonical datasets (gitignored)
 ├── tests/                        # unit / integration / benchmark
 ├── docs/                         # developer documentation (AUDIT.md, NORMALIZATION.md, ONTOLOGY.md, ...)
@@ -154,7 +164,7 @@ pip install -e ".[train]"        # mlx, mlx-vlm
 
 ## Quick Start
 
-> ⚠️ `audit`, `normalize`, and `ontology` are implemented (CPU-only, deterministic).
+> ⚠️ `audit`, `normalize`, `ontology`, and `vocabulary` are implemented (CPU-only, deterministic).
 > Later-stage commands still raise `NotImplementedError` until their milestone lands.
 
 ```bash
@@ -162,6 +172,7 @@ plantdx --help                                           # top-level CLI
 plantdx audit             --config configs/config.yaml   # implemented — dataset audit
 plantdx normalize         --config configs/config.yaml   # implemented — dataset normalization
 plantdx ontology          --config configs/config.yaml   # implemented — domain ontology compiler
+plantdx vocabulary        --config configs/config.yaml   # implemented — vocabulary + symptom lexicon compiler
 plantdx generate          --config configs/config.yaml   # Milestone 3
 plantdx validate          --config configs/config.yaml   # Milestone 3
 plantdx dataset build     --config configs/config.yaml   # Milestone 4
@@ -174,15 +185,20 @@ Programmatic surface (implemented stages):
 
 ```python
 from plantdx.config import load_config
-from plantdx.ontology.domain import compile_ontology, validate_ontology, write_artifacts
+from plantdx.ontology.domain import compile_ontology, validate_ontology
+from plantdx.vocabulary.domain import build_vocabulary_result, validate_vocabulary_result
 
 cfg = load_config("configs/config.yaml")
 result = compile_ontology(cfg.paths.knowledge_base["dkb_json"])
 validate_ontology(result)   # fail-closed; raises OntologyValidationError on any rule breach
+
+vocab = build_vocabulary_result(result.ontology)
+validate_vocabulary_result(vocab, result.ontology)   # fail-closed; raises VocabularyValidationError
 ```
 
-See [`docs/AUDIT.md`](docs/AUDIT.md), [`docs/NORMALIZATION.md`](docs/NORMALIZATION.md), and
-[`docs/ONTOLOGY.md`](docs/ONTOLOGY.md) for each implemented stage's full usage.
+See [`docs/AUDIT.md`](docs/AUDIT.md), [`docs/NORMALIZATION.md`](docs/NORMALIZATION.md),
+[`docs/ONTOLOGY.md`](docs/ONTOLOGY.md), and [`docs/VOCABULARY.md`](docs/VOCABULARY.md) for each
+implemented stage's full usage.
 
 ## Datasets
 
@@ -237,8 +253,8 @@ Released under the **Apache License 2.0** — see [`LICENSE`](LICENSE). Apache-2
 | **M2** | Dataset Audit Engine (`plantdx audit`) | ✅ done |
 | **M2.1** | Dataset Normalization Engine (`plantdx normalize`) | ✅ done |
 | **M2.2** | Domain Ontology Compiler (`plantdx ontology`) | ✅ done |
-| **M2b** | Caption concept model + Vocabulary + Symptom-Lexicon builders (a view over the ontology) | ⏳ next |
-| **M3** | Caption Generation Engine + 12-stage Validation Engine | ⏳ |
+| **M2b** | Vocabulary + Symptom Lexicon Compiler (`plantdx vocabulary`, a view over the ontology) | ✅ done |
+| **M3** | Caption concept model (component A) + Caption Generation Engine + 12-stage Validation Engine | ⏳ next |
 | **M4** | Instruction Dataset Builder + splits + per-model converters | ⏳ |
 | **M5** | QLoRA fine-tuning (MLX) for all four models | ⏳ |
 | **M6** | Evaluation: zero-shot vs fine-tuned; diagnostic confusable-pair split | ⏳ |

@@ -14,7 +14,8 @@ Usage:
                               [--dataset tomato|mango|all] [--mode copy|link]
     plantdx ontology          --config configs/config.yaml
                               [--output DIR] [--validate-only] [--stats-only]
-    plantdx vocabulary build --config configs/config.yaml
+    plantdx vocabulary       --config configs/config.yaml
+                              [--output DIR] [--validate-only] [--stats-only]
     plantdx generate         --config configs/config.yaml
     plantdx validate         --config configs/config.yaml
     plantdx dataset build    --config configs/config.yaml
@@ -33,7 +34,6 @@ from collections.abc import Sequence
 from plantdx.__about__ import __version__
 
 _MILESTONE = {
-    "vocabulary": "Milestone 2",
     "generate": "Milestone 3",
     "validate": "Milestone 3",
     "dataset": "Milestone 4",
@@ -112,10 +112,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Compile, validate, print statistics; write nothing",
     )
 
-    # vocabulary build
-    p_vocab = sub.add_parser("vocabulary", help="Build vocabulary + symptom lexicon (M2)")
-    vocab_sub = p_vocab.add_subparsers(dest="subcommand", metavar="<subcommand>")
-    _add_config(vocab_sub.add_parser("build", help="Derive vocabulary artifacts"))
+    # vocabulary (vocabulary + symptom lexicon compiler — implemented)
+    p_vocab = sub.add_parser(
+        "vocabulary", help="Derive the vocabulary + symptom lexicon from the ontology (CPU-only)"
+    )
+    _add_config(p_vocab)
+    p_vocab.add_argument(
+        "--output", default=None, help="Output directory (default: artifacts/vocabulary)"
+    )
+    p_vocab.add_argument(
+        "--validate-only", action="store_true", help="Compile and validate; write no artifacts"
+    )
+    p_vocab.add_argument(
+        "--stats-only",
+        action="store_true",
+        help="Compile, validate, print statistics; write nothing",
+    )
 
     # generate / validate
     _add_config(sub.add_parser("generate", help="Generate the caption library (M3)"))
@@ -291,6 +303,73 @@ def _run_ontology(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_vocabulary(args: argparse.Namespace) -> int:
+    """Handle ``plantdx vocabulary`` (vocabulary + symptom lexicon compiler). Returns exit code."""
+    import json
+    from pathlib import Path
+
+    from plantdx.config import load_config
+    from plantdx.core.exceptions import PlantDxError
+    from plantdx.ontology.domain import compile_ontology, validate_ontology
+    from plantdx.ontology.domain.validator import OntologyValidationError
+    from plantdx.vocabulary.domain import (
+        build_vocabulary_result,
+        compute_statistics,
+        validate_vocabulary_result,
+        write_artifacts,
+    )
+    from plantdx.vocabulary.domain.validator import VocabularyValidationError
+
+    try:
+        config = load_config(args.config)
+        onto_result = compile_ontology(Path(config.paths.knowledge_base["dkb_json"]))
+    except PlantDxError as exc:  # config error or DKB load/validate error
+        print(f"plantdx vocabulary: {exc}", file=sys.stderr)
+        return 2
+
+    try:
+        validate_ontology(onto_result)
+    except OntologyValidationError as exc:
+        print(f"plantdx vocabulary: source ontology is invalid: {exc}", file=sys.stderr)
+        return 1
+
+    ontology = onto_result.ontology
+    result = build_vocabulary_result(ontology)
+
+    try:
+        report = validate_vocabulary_result(result, ontology)
+    except VocabularyValidationError as exc:
+        print(f"plantdx vocabulary: {exc}", file=sys.stderr)
+        return 1
+
+    stats = compute_statistics(result, "valid")
+    checksum = result.provenance["content_hash"]
+
+    if args.stats_only:
+        print(json.dumps(stats, indent=2, sort_keys=True))
+        return 0
+    if args.validate_only:
+        print(
+            f"vocabulary valid: {stats['vocabulary_item_count']} vocabulary items, "
+            f"{stats['lexicon_item_count']} lexicon items, checksum {checksum}"
+        )
+        return 0
+
+    out_dir = (
+        Path(args.output)
+        if args.output
+        else Path(config.paths.artifact_root) / config.paths.artifacts["vocabulary_dir"]
+    )
+    written = write_artifacts(result, out_dir, stats, report)
+    print(
+        f"Vocabulary compiled: {stats['vocabulary_item_count']} vocabulary items, "
+        f"{stats['lexicon_item_count']} lexicon items."
+    )
+    print(f"Checksum: {checksum}")
+    print(f"Artifacts written to {out_dir}/ ({len(written)} files).")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point. Returns a process exit code."""
     parser = build_parser()
@@ -306,6 +385,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_normalize(args)
     if args.command == "ontology":
         return _run_ontology(args)
+    if args.command == "vocabulary":
+        return _run_vocabulary(args)
 
     try:
         _not_implemented(args.command)

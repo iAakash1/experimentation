@@ -8,10 +8,12 @@ How the `src/plantdx/` code maps to the caption-framework specification
 
 | Spec component | Package / module | Interface class | Milestone |
 |----------------|------------------|-----------------|-----------|
-| — DKB loader | `knowledge_base/loader.py` | `DKBLoader` | M2 |
-| (A) Ontology Builder | `ontology/builder.py` | `OntologyBuilder` | M2 |
-| (B) Vocabulary Builder | `vocabulary/builder.py` | `VocabularyBuilder` | M2 |
-| (C) Symptom Lexicon Builder | `vocabulary/lexicon.py` | `SymptomLexiconBuilder` | M2 |
+| — DKB loader | `knowledge_base/loader.py` | `DKBLoader` | M3 |
+| — Domain ontology substrate | `ontology/domain/` | `compile_ontology` | M2.2 ✅ |
+| — Domain vocabulary substrate | `vocabulary/domain/` | `build_vocabulary_result` | M2b ✅ |
+| (A) Ontology Builder (caption-concept view) | `ontology/builder.py` | `OntologyBuilder` | M3 |
+| (B) Vocabulary Builder | `vocabulary/builder.py` | `VocabularyBuilder` | M3 |
+| (C) Symptom Lexicon Builder | `vocabulary/lexicon.py` | `SymptomLexiconBuilder` | M3 |
 | (D) Concept Selector | `generation/selector.py` | `ConceptSelector` | M3 |
 | (E) Template Library | `generation/templates.py` | `TemplateLibrary` | M3 |
 | (F) Slot Realizer + Expander | `generation/realizer.py`, `vocabulary/expander.py` | `SlotRealizer`, `VocabularyExpander` | M3 |
@@ -24,6 +26,14 @@ How the `src/plantdx/` code maps to the caption-framework specification
 | QA | `qa/*` | `AuditSampler`, `ReviewStore`, `AcceptanceEvaluator` | M4 |
 | Training | `training/*` | `MLXVLMRunner`, `QLoRASettings` | M5 |
 | Evaluation | `evaluation/*` | `ZeroShotEvaluator`, `ComparisonReporter` | M6 |
+
+> Components (B) and (C) as originally specified would consume the caption-concept
+> ontology from component (A). Since (A) doesn't exist yet, M2b instead implemented
+> their functionality directly against the **domain ontology substrate**
+> (`vocabulary/domain/`, `plantdx vocabulary`) — a deterministic re-founding, not a
+> redesign (`ontology_design/01_architecture.md` §1.5). The `vocabulary/builder.py`/
+> `vocabulary/lexicon.py` stub rows above are the original spec-shaped interfaces and
+> remain unimplemented; they are not required for the pipeline to proceed.
 
 Supporting layers: `core/` (types, enums, exceptions, seeding — a leaf package
 depending only on stdlib), `config/` (typed schema + loader), `utils/` (hashing,

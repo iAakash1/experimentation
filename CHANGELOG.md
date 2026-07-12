@@ -6,6 +6,35 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added — Vocabulary Builder + Symptom Lexicon Compiler (CPU-only, deterministic)
+- `src/plantdx/vocabulary/domain/` — a deterministic `Vocabulary = f(Ontology, Policies)`
+  compiler that projects the compiled domain ontology (never the DKB directly) into a
+  flat controlled vocabulary (component B: color, shape, texture, extent, leaf region,
+  sign type, agent name, disease name, environment, observability + confidence modifiers)
+  and a bounded symptom lexicon (component C: one verbatim base realization per symptom,
+  plus one linear single-modifier realization per attached quality value on primary,
+  modifiable-sign-type symptoms — never a Cartesian product across axes). Modules:
+  `models` (shared `LexicalItem` schema), `policies` (category → relation mappings),
+  `graph_queries` (shared read-only ontology queries), `builder`, `lexicon`, `validator`
+  (fail-closed `V-VOC-1..9` battery), `statistics`, `serialization`, `checksum`. Entry
+  point `plantdx.vocabulary.domain.build_vocabulary_result`.
+- `plantdx vocabulary` CLI (flags `--config`, `--output`, `--validate-only`,
+  `--stats-only`; also `python -m plantdx vocabulary`). Writes six artifacts to
+  `artifacts/vocabulary/` (`vocabulary.json`, `symptom_lexicon.json`, `concept_index.json`,
+  `statistics.json`, `checksum.txt`, `validation_report.json`) — byte-identical across runs.
+- Every item carries the full traceability schema (`id, surface_form, canonical_form,
+  concept, concept_id, confidence, source, ontology_node, dkb_reference, evidence,
+  language, part_of_speech`), grounding it back through its ontology node to the DKB
+  disease(s) and evidence that licensed it.
+- Discovered and handled a real cross-axis word collision in the DKB (a few conditions,
+  e.g. `mango_gall_midge`, use the same word — "raised" — as both a shape and a texture
+  value): the lexicon builder deterministically keeps only the highest-priority axis
+  (`MODIFIER_RELATIONS` order) per symptom, so no duplicate realizations are ever emitted.
+- Tests under `tests/unit/vocabulary/` (`test_vocabulary_domain_*`, `test_vocabulary_cli.py`):
+  category coverage, agent-name labeling, shared-value traceability, bounded (non-combinatorial)
+  lexicon realizations, cross-axis dedup, every fail-closed validation mode, determinism,
+  a real-DKB golden-hash regression, and real CLI end-to-end runs. Docs: `docs/VOCABULARY.md`.
+
 ### Fixed — CI stabilization pass (Ruff / mypy / pytest green; no behavior change)
 - Fixed a circular import (`dataset/emitter.py` ⇄ `generation/engine.py`) with a
   `TYPE_CHECKING`-guarded import; zero runtime effect (`from __future__ import annotations`

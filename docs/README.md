@@ -14,6 +14,7 @@ implements it.
 | [AUDIT.md](AUDIT.md) | The Dataset Audit Engine (`plantdx audit`): usage, artifacts, guarantees. |
 | [NORMALIZATION.md](NORMALIZATION.md) | The Dataset Normalization Engine (`plantdx normalize`): usage, artifacts, guarantees. |
 | [ONTOLOGY.md](ONTOLOGY.md) | The Domain Ontology Compiler (`plantdx ontology`): usage, artifacts, exit codes. |
+| [VOCABULARY.md](VOCABULARY.md) | The Vocabulary + Symptom Lexicon Compiler (`plantdx vocabulary`): usage, artifacts, validation battery. |
 | [ROADMAP.md](ROADMAP.md) | Milestones and their acceptance criteria. |
 | [KNOWN_ISSUES.md](KNOWN_ISSUES.md) | Known, intentionally deferred issues. |
 | [adr/](adr/) | Architecture Decision Records. |

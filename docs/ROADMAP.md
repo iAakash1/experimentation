@@ -32,26 +32,37 @@ reviewable body of work; scope PRs to a single milestone.
   typed knowledge graph (`src/plantdx/ontology/domain/`) and writes six artifacts
   to `artifacts/ontology/`. Design: [`ontology_design/`](../ontology_design/); usage:
   [ONTOLOGY.md](ONTOLOGY.md). Distinct from the caption-concept model in
-  `plantdx.ontology` (M2b below).
+  `plantdx.ontology` (component A, M3 below).
 - **Acceptance:** `plantdx ontology` builds + validates (fail-closed) the 18-condition
   graph; repeated builds are byte-identical (content-hash pinned); unit tests cover
   hierarchy, graph generation, ordering, checksum, and every validation-failure mode.
 
-## M2b — Caption concept model + Vocabulary + Symptom Lexicon (a view over the ontology)
-- Implement `DKBLoader`, `OntologyBuilder` (A), `VocabularyBuilder` (B),
-  `SymptomLexiconBuilder` (C), and the derivation rules (doc 01 §3.2), overrides
-  (doc 01 §6), and self-checks (doc 01 §8).
-- **Acceptance:** ontology is a pure projection of the DKB (every vocab value
-  traces to a DKB field); build self-checks pass for all 18 classes; unit tests
-  for each derivation rule; `test_ontology_is_pure_projection_of_dkb` unskipped.
+## M2b — Vocabulary Builder + Symptom Lexicon Compiler ✅ (implemented)
+- CPU-only, deterministic `Vocabulary = f(Ontology, Policies)`. Projects the compiled
+  domain ontology (never the DKB directly) into a flat controlled vocabulary
+  (`VocabularyBuilder`, component B) and a bounded symptom lexicon (`SymptomLexiconBuilder`,
+  component C) — `src/plantdx/vocabulary/domain/` — and writes six artifacts to
+  `artifacts/vocabulary/`. Usage: [VOCABULARY.md](VOCABULARY.md). Re-founds components B/C
+  directly onto the domain ontology substrate (`ontology_design/01_architecture.md` §1.5)
+  rather than waiting on the still-unimplemented caption-concept model (component A, below).
+- **Acceptance:** `plantdx vocabulary` builds + validates (fail-closed) both artifacts
+  from the real 18-condition ontology; every item traces to an ontology node and, through
+  its grounding relation, to the DKB disease(s) and evidence that licensed it; the lexicon
+  is linear in attached quality values (never a Cartesian product) and deterministically
+  deduplicates cross-axis word collisions; repeated builds are byte-identical
+  (content-hash pinned); unit tests cover category coverage, bounded symptom realizations,
+  dedup, traceability, and every `V-VOC-*` validation-failure mode.
 
-## M3 — Caption Generation Engine + Validation Engine
-- Implement components D–H and the `CaptionEngine` loop (doc 00 §3), the 12
-  validators (doc 03), the expander lattice (doc 01 §7), seeding, diversity
-  metrics/gates.
-- **Acceptance:** deterministic bit-for-bit regeneration; zero forbidden terms in
-  accepted captions; fallback rate ≤ 2%; diversity hard-gates pass on a pilot
-  corpus; the generation/reproducibility integration tests unskipped.
+## M3 — Caption concept model + Caption Generation Engine + Validation Engine
+- Implement `DKBLoader`, `OntologyBuilder` (A, the caption-concept view over the domain
+  ontology — doc 01 §3.2 derivation rules, §6 overrides, §8 self-checks), components D–H,
+  the `CaptionEngine` loop (doc 00 §3), the 12 validators (doc 03), the expander lattice
+  (doc 01 §7, Vocabulary Expansion — component F, consuming the M2b vocabulary), seeding,
+  diversity metrics/gates.
+- **Acceptance:** caption-concept ontology is a pure projection of the domain ontology;
+  build self-checks pass for all 18 classes; deterministic bit-for-bit regeneration; zero
+  forbidden terms in accepted captions; fallback rate ≤ 2%; diversity hard-gates pass on a
+  pilot corpus; the generation/reproducibility integration tests unskipped.
 
 ## M4 — Instruction Dataset Builder + splits + converters + QA
 - Implement `Emitter` (I), `SplitBuilder`, `LabelResolver`, `InstructionBank`,
