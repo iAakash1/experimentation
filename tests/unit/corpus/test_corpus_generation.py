@@ -64,6 +64,35 @@ def test_optional_slot_deletion_stays_grammatical() -> None:
 
 
 @pytest.mark.unit
+def test_collapse_adjacent_duplicate_words_and_spans() -> None:
+    """RC1 W3: slot-join artifacts like 'raised raised' / 'on the lamina on the lamina'."""
+    from plantdx.corpus.generator import _collapse_repeats
+
+    assert _collapse_repeats("raised raised, angular") == "raised, angular"
+    assert _collapse_repeats("galls on the lamina on the lamina") == "galls on the lamina"
+    assert _collapse_repeats("yellowing yellowing followed") == "yellowing followed"
+    assert _normalize("numerous numerous small galls") == "Numerous small galls."
+
+
+@pytest.mark.unit
+def test_redundant_modifier_is_suppressed() -> None:
+    """RC1 W2: a modifier already conveyed by the anchor is dropped."""
+    from plantdx.corpus.planner import _Emitted
+
+    e = _Emitted()
+    e.add("black sooty coating")
+    assert e.redundant("black") is True  # single word already present
+    assert e.redundant("velvety") is False
+    assert e.redundant("on the surface") is False
+    e2 = _Emitted()
+    e2.add("tomato mosaic virus")
+    assert e2.redundant("tomato mosaic virus (tomv)") is True  # agent restates disease
+    e3 = _Emitted()
+    e3.add("early blight")
+    assert e3.redundant("Alternaria solani") is False  # a real agent name is kept
+
+
+@pytest.mark.unit
 def test_concept_piece_glue_and_suffix() -> None:
     plan = _plan(
         PlanPiece(kind=PIECE_LIT, text="early blight"),

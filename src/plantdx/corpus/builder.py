@@ -17,7 +17,6 @@ from plantdx.corpus import validator
 from plantdx.corpus.generator import generate
 from plantdx.corpus.models import Caption, Corpus
 from plantdx.corpus.planner import plan_caption
-from plantdx.corpus.seeds import choice_index
 from plantdx.templates import compatible_templates
 from plantdx.templates.checksum import content_hash as template_checksum
 from plantdx.templates.models import Template, TemplateLibrary
@@ -26,6 +25,11 @@ from plantdx.utils.hashing import sha256_hex
 _CONFIDENCE_RANK = {"hedged": 1, "typical": 2, "asserted": 3}
 _RANK_CONFIDENCE = {v: k for k, v in _CONFIDENCE_RANK.items()}
 _MEDIUM_SUBSET_SIZE = 3
+# Realization variants per (template, concept-subset): concepts with multiple
+# controlled phrasings yield distinct valid captions; duplicates are dropped. Two
+# is the deliberate balance between coverage of sparse diseases and avoiding a
+# flood of one-word-swap near-duplicates that would depress lexical diversity.
+_REALIZATION_VARIANTS = 2
 
 
 class CorpusBuildError(PlantDxError):
@@ -50,19 +54,25 @@ def build_corpus(
     for model in models:
         accepted_here = 0
         for template in compatible_templates(library, model):
-            for variant in range(len(_selections(model, template))):
-                caption = _assemble(model, template, str(variant))
-                violations = validator.validate_caption(caption, model, template)
-                if violations:
-                    for check in {v.split(":", 1)[0] for v in violations}:
-                        rejected_by_check[check] = rejected_by_check.get(check, 0) + 1
-                    continue
-                norm = " ".join(caption.text.lower().split())
-                if norm in seen:
-                    continue
-                seen.add(norm)
-                captions.append(caption)
-                accepted_here += 1
+            for subset_index, subset in enumerate(_selections(model, template)):
+                # Try a bounded number of realization variants per subset: concepts
+                # with several controlled phrasings yield different (still valid,
+                # still traceable) captions, raising diversity and the coverage of
+                # sparse diseases. Identical results are dropped by de-duplication,
+                # so richer diseases simply produce more unique captions.
+                for realization in range(_REALIZATION_VARIANTS):
+                    caption = _assemble(model, template, subset, f"{subset_index}:{realization}")
+                    violations = validator.validate_caption(caption, model, template)
+                    if violations:
+                        for check in {v.split(":", 1)[0] for v in violations}:
+                            rejected_by_check[check] = rejected_by_check.get(check, 0) + 1
+                        continue
+                    norm = " ".join(caption.text.lower().split())
+                    if norm in seen:
+                        continue
+                    seen.add(norm)
+                    captions.append(caption)
+                    accepted_here += 1
         if accepted_here == 0:
             raise CorpusBuildError(f"disease {model.disease_id} produced zero valid captions")
         accepted_by_disease[model.disease_id] = accepted_here
@@ -123,9 +133,11 @@ def _selections(model: ConceptModel, template: Template) -> list[frozenset[str]]
     return unique
 
 
-def _assemble(model: ConceptModel, template: Template, variant: str) -> Caption:
+def _assemble(
+    model: ConceptModel, template: Template, selected: frozenset[str], variant: str
+) -> Caption:
     """Plan + generate + attach traceable metadata for one caption."""
-    plan = plan_caption(model, template, _plan_selection(model, template, variant), variant)
+    plan = plan_caption(model, template, selected, variant)
     text = generate(plan)
     concepts = {c.concept_id: c for c in model.concepts}
     asserted = plan.asserted_concepts
@@ -152,10 +164,3 @@ def _assemble(model: ConceptModel, template: Template, variant: str) -> Caption:
         concepts=asserted,
         evidence=tuple(sorted(evidence)),
     )
-
-
-def _plan_selection(model: ConceptModel, template: Template, variant: str) -> frozenset[str]:
-    """Reconstruct the concept subset for a given variant index (matches _selections)."""
-    subsets = _selections(model, template)
-    idx = int(variant) if variant.isdigit() else choice_index(len(subsets), variant)
-    return subsets[idx % len(subsets)]

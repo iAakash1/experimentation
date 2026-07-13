@@ -9,6 +9,7 @@ controlled realizations. No randomness, no wall-clock, no image, no LLM/VLM.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from plantdx.concepts import policies
@@ -160,11 +161,13 @@ class _Context:
         self, out: dict[str, CaptionConcept], disease: dict[str, Any], condition: Node
     ) -> None:
         # Disease common names are lowercased for running text ("early blight",
-        # not "Early Blight"); the generator capitalizes sentence-initial words.
+        # not "Early Blight") and stripped of spelling/abbreviation parentheticals
+        # ("sooty mould (sooty mold)" -> "sooty mould"); the generator capitalizes
+        # sentence-initial words.
         surfaces = _dedup_sorted(
             [
-                str(condition.properties.get("canonical_label", "")).lower(),
-                str(disease.get("common_name", "")).lower(),
+                _strip_paren(str(condition.properties.get("canonical_label", "")).lower()),
+                _strip_paren(str(disease.get("common_name", "")).lower()),
             ]
         )
         out["disease_identity"] = CaptionConcept(
@@ -271,14 +274,18 @@ class _Context:
                 evidence=_edges_evidence(primary_ev),
                 dkb_fields=("diagnostic_visual_features", "primary_symptoms"),
             )
-        if secondary:
+        # Secondary signs are hedged ("may later develop {secondary}"); require a
+        # noun phrase and drop any phrase carrying a severity-stage token so the
+        # caption is never generated-then-rejected (V-CAP-11 stays as defense in depth).
+        secondary_np = [s for s in secondary if _is_noun_phrase(s) and not _has_stage_token(s)]
+        if secondary_np:
             out["secondary_sign"] = CaptionConcept(
                 concept_id="secondary_sign",
                 status=STATUS_OPTIONAL,
                 observable=True,
                 confidence="hedged",
                 sign_type=None,
-                realizations=_dedup_sorted(secondary),
+                realizations=_dedup_sorted(secondary_np),
                 modifiers=(),
                 evidence=_edges_evidence(secondary_ev),
                 dkb_fields=("secondary_symptoms",),
@@ -290,18 +297,46 @@ class _Context:
                 observable=True,
                 confidence="asserted",
                 sign_type="healthy",
-                realizations=_dedup_sorted(healthy),
+                realizations=self._healthy_observations(disease, healthy),
                 modifiers=(),
-                evidence=_edges_evidence(healthy_ev),
-                dkb_fields=("primary_symptoms",),
+                evidence=_edges_evidence(healthy_ev) or _disease_evidence(disease),
+                dkb_fields=(
+                    "diagnostic_visual_features",
+                    "primary_symptoms",
+                    "texture_changes",
+                    "leaf_margin_changes",
+                ),
             )
+
+    def _healthy_observations(
+        self, disease: dict[str, Any], fallback: list[str]
+    ) -> tuple[str, ...]:
+        """Multiple atomic, evidence-supported healthy observations from DKB fields.
+
+        Pulls the clean noun-phrase descriptors of a healthy leaf (uniform green
+        lamina, intact margins, glossy surface, ...) from the DKB's healthy fields
+        so a healthy caption has real variety instead of one repeated mouthful.
+        Every phrase is a verbatim DKB observation — nothing is invented.
+        """
+        phrases: list[str] = [_strip_paren(p) for p in fallback]
+        for field_name in (
+            "diagnostic_visual_features",
+            "primary_symptoms",
+            "texture_changes",
+            "leaf_margin_changes",
+        ):
+            for phrase in _clean_phrases(disease.get(field_name)):
+                stripped = _strip_paren(phrase)
+                if _is_noun_phrase(stripped):
+                    phrases.append(stripped)
+        return _dedup_sorted(phrases)
 
     def _modifier_values(self, disease_id: str, primary_sign_type: str | None) -> tuple[str, ...]:
         if primary_sign_type not in policies.MODIFIABLE_SIGN_TYPES:
             return ()
         values: list[str] = []
         for category in ("color", "shape", "texture", "extent"):
-            values.extend(i.surface_form for i in self._vocab(disease_id, category))
+            values.extend(_strip_paren(i.surface_form) for i in self._vocab(disease_id, category))
         return _dedup_sorted(values)
 
     def _add_qualities(
@@ -322,7 +357,7 @@ class _Context:
                 observable=True,
                 confidence="typical",
                 sign_type=primary_sign_type,
-                realizations=_dedup_sorted([i.surface_form for i in items]),
+                realizations=_dedup_sorted([_strip_paren(i.surface_form) for i in items]),
                 modifiers=(),
                 evidence=_items_evidence(items),
                 dkb_fields=fields,
@@ -330,14 +365,17 @@ class _Context:
 
     def _add_extent(self, out: dict[str, CaptionConcept], disease_id: str) -> None:
         items = self._vocab(disease_id, "extent")
-        if items:
+        realizations = _dedup_sorted(
+            [_strip_paren(i.surface_form) for i in items if not _has_stage_token(i.surface_form)]
+        )
+        if realizations:
             out["extent"] = CaptionConcept(
                 concept_id="extent",
                 status=STATUS_OPTIONAL,
                 observable=True,
                 confidence="typical",
                 sign_type=None,
-                realizations=_dedup_sorted([i.surface_form for i in items]),
+                realizations=realizations,
                 modifiers=(),
                 evidence=_items_evidence(items),
                 dkb_fields=("severity_vocabulary",),
@@ -384,7 +422,7 @@ class _Context:
         edges = self._out(condition.id, "differentiated_from")
         rivals = _dedup_sorted(
             [
-                str(self.nodes_by_id[e.target].properties.get("canonical_label", e.target)).lower()
+                _strip_paren(_rival_label(self.nodes_by_id[e.target]).lower())
                 for e in edges
                 if e.target in self.nodes_by_id
             ]
@@ -486,6 +524,11 @@ def _symptom_text(symptom: Node) -> str:
     return str(symptom.properties.get("source_text", symptom.properties["canonical_label"]))
 
 
+def _rival_label(node: Node) -> str:
+    """The display label of a rival condition node (for differential realizations)."""
+    return str(node.properties.get("canonical_label", node.id))
+
+
 # First words / markers that make a symptom phrase a clause rather than a noun
 # phrase; such phrases cannot fill a "{primary} can be seen" slot grammatically.
 _CLAUSE_LEADERS = frozenset(
@@ -540,14 +583,43 @@ _CLAUSE_LEADERS = frozenset(
     }
 )
 _CLAUSE_MARKERS = ("may be visible", "are visible", "is visible", "may be present", "may develop")
+# Bare finite verbs that, when they END a phrase, mark it as a clause ("young
+# leaves distort", "affected leaflets distort as they senesce").
+_TRAILING_VERBS = frozenset(
+    {
+        "distort",
+        "distorts",
+        "curl",
+        "curls",
+        "drop",
+        "drops",
+        "wilt",
+        "wilts",
+        "senesce",
+        "senesces",
+        "coalesce",
+        "coalesces",
+        "die",
+        "dies",
+        "shrivel",
+        "shrivels",
+        "yellow",
+        "yellows",
+        "necrose",
+        "necroses",
+        "collapse",
+        "collapses",
+    }
+)
 
 
 def _is_noun_phrase(phrase: str) -> bool:
     """Deterministic check that a symptom phrase reads as a noun phrase, not a clause.
 
     Rejects phrases beginning with a verb or adverb (a leading ``-ly`` adverb or a
-    known clause verb) or containing a finite-verb marker — such phrases cannot
-    fill a "showing {primary}" / "{primary} can be seen" slot grammatically.
+    known clause verb), ending in a bare finite verb ("young leaves distort"), or
+    containing a finite-verb marker — none of which can fill a "showing {primary}"
+    / "{primary} can be seen" slot grammatically.
     """
     words = phrase.strip().lower().split()
     if not words:
@@ -555,8 +627,27 @@ def _is_noun_phrase(phrase: str) -> bool:
     first = words[0].strip(",;:")
     if first in _CLAUSE_LEADERS or (first.endswith("ly") and len(first) > 3):
         return False
+    if words[-1].strip(".,;:") in _TRAILING_VERBS:
+        return False
     low = phrase.lower()
     return not any(marker in low for marker in _CLAUSE_MARKERS)
+
+
+def _strip_paren(text: str) -> str:
+    """Drop parenthetical disambiguation notes from a controlled quality value.
+
+    DKB quality vocabulary annotates some values with a bracketed note ("yellow
+    (halo)", "reddish (early)", "black (necrotic galls)") that disambiguates the
+    DKB entry but reads badly in a caption. Applied only to short quality-axis
+    values (color/shape/texture/extent), never to primary signs or agent names.
+    """
+    return re.sub(r"\s+", " ", re.sub(r"\s*\([^)]*\)", "", text)).strip()
+
+
+def _has_stage_token(text: str) -> bool:
+    """Whether a phrase contains a severity-stage token (word-boundary match)."""
+    low = text.lower()
+    return any(re.search(rf"(?<!\w){re.escape(t)}(?!\w)", low) for t in policies.STAGE_TOKENS)
 
 
 def _dedup_sorted(values: list[str]) -> tuple[str, ...]:
@@ -577,7 +668,12 @@ def _clean_phrases(value: Any) -> list[str]:
     out: list[str] = []
     for item in items:
         text = str(item).strip()
-        if text and text.lower() not in policies.NA_VALUES and not _is_negation(text):
+        if (
+            text
+            and text.lower() not in policies.NA_VALUES
+            and not _is_negation(text)
+            and not _has_stage_token(text)
+        ):
             out.append(text)
     return out
 

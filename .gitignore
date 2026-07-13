@@ -24,7 +24,10 @@ mango/raw/**
 checkpoints/
 adapters/
 
-# --- Dataset audit reports (generated; regenerable via `plantdx audit`) ---
+# --- Training logs (generated; CSV/JSON/Markdown metrics + train.log) ---
+logs/
+
+# --- Dataset audit reports + training reports (generated) ---
 reports/
 
 # --- Normalized datasets (generated; regenerable via `plantdx normalize`) ---

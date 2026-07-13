@@ -29,7 +29,9 @@ Usage:
     plantdx dataset build    --config configs/config.yaml
     plantdx dataset convert  --model qwen3_vl
     plantdx qa sample        --config configs/config.yaml
-    plantdx train            --model qwen3_vl
+    plantdx prepare-training --config configs/train/qwen25vl_tomato.yaml
+    plantdx train            --config configs/train/qwen25vl_tomato.yaml [--dry-run]
+    plantdx infer            --adapter checkpoints/<run>/ --image leaf.JPG
     plantdx evaluate         --model qwen3_vl
 """
 
@@ -46,7 +48,6 @@ from plantdx.__about__ import __version__
 _MILESTONE = {
     "dataset": "Milestone 4",
     "qa": "Milestone 4",
-    "train": "Milestone 5",
     "evaluate": "Milestone 6",
 }
 
@@ -197,9 +198,54 @@ def build_parser() -> argparse.ArgumentParser:
     _add_config(qa_sub.add_parser("sample", help="Draw a stratified audit sample"))
     _add_config(qa_sub.add_parser("accept", help="Evaluate the acceptance rule"))
 
-    # train / evaluate
-    p_train = sub.add_parser("train", help="QLoRA fine-tune a target model (M5)")
-    p_train.add_argument("--model", required=True, help="Target model key")
+    # prepare-training: build the tomato dataset + plan + report; NEVER launches
+    p_prep = sub.add_parser(
+        "prepare-training",
+        help="Build the tomato training dataset + plan + report (no training runs)",
+    )
+    p_prep.add_argument(
+        "--config",
+        default="configs/train/qwen25vl_tomato.yaml",
+        help="Path to a training config (configs/train/*.yaml)",
+    )
+    p_prep.add_argument("--dataset-dir", default=None, help="Override the dataset output dir")
+
+    # train: prepare, then LAUNCH mlx-vlm (unless --dry-run). Tomato + Qwen2.5-VL.
+    p_train = sub.add_parser("train", help="Fine-tune Qwen2.5-VL on tomato leaf captions (MLX)")
+    p_train.add_argument(
+        "--config",
+        default="configs/train/qwen25vl_tomato.yaml",
+        help="Path to a training config (configs/train/*.yaml)",
+    )
+    p_train.add_argument("--model", default=None, help="Informational; must match the config model")
+    p_train.add_argument("--crop", default=None, help="Informational; must match the config crop")
+    p_train.add_argument("--dataset-dir", default=None, help="Override the dataset output dir")
+    p_train.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Prepare dataset + plan + report only; do NOT start training",
+    )
+
+    # infer: caption images with a (optionally fine-tuned) model
+    p_infer = sub.add_parser("infer", help="Caption tomato leaf images with a trained adapter")
+    p_infer.add_argument(
+        "--model-path",
+        default="mlx-community/Qwen2.5-VL-7B-Instruct-4bit",
+        help="Base model repo id or path",
+    )
+    p_infer.add_argument("--adapter", default=None, help="Path to a trained adapter directory/file")
+    src = p_infer.add_mutually_exclusive_group(required=True)
+    src.add_argument("--image", default=None, help="Caption a single image")
+    src.add_argument("--folder", default=None, help="Caption every image in a folder")
+    p_infer.add_argument(
+        "--instruction",
+        default="Describe the visible condition of this tomato leaf.",
+        help="Instruction prompt",
+    )
+    p_infer.add_argument("--max-tokens", type=int, default=128, help="Max new tokens")
+    p_infer.add_argument("--temperature", type=float, default=0.0, help="Sampling temperature")
+    p_infer.add_argument("--json", action="store_true", help="Emit JSON instead of text")
+
     p_eval = sub.add_parser("evaluate", help="Evaluate zero-shot vs fine-tuned (M6)")
     p_eval.add_argument("--model", required=True, help="Target model key")
 
@@ -637,6 +683,123 @@ def _run_corpus(args: argparse.Namespace) -> int:
     return 0
 
 
+def _print_prepared(prepared: Any) -> None:
+    """Print a concise plan summary for a prepared run."""
+    p, s = prepared.plan, prepared.stats
+    print(
+        f"Dataset:   {s.image_count} images -> {s.row_count} rows "
+        f"(train {p.train_rows} / val {p.val_rows} / test {p.test_rows}) @ {prepared.dataset_dir}"
+    )
+    print(f"Corpus:    {s.corpus_checksum}")
+    print(
+        f"Plan:      {p.iters} iters, effective batch {p.effective_batch_size}, "
+        f"~{p.est_minutes_low:.0f}-{p.est_minutes_high:.0f} min, "
+        f"peak ~{p.est_peak_mem_low_gb:.0f}-{p.est_peak_mem_high_gb:.0f} GB"
+    )
+    for warning in p.warnings:
+        print(f"  warning: {warning}", file=sys.stderr)
+    print(f"Report:    {prepared.report_paths['markdown']}")
+
+
+def _run_prepare_training(args: argparse.Namespace) -> int:
+    """Handle ``plantdx prepare-training``: build dataset + plan + report. No launch."""
+    from plantdx.core.exceptions import PlantDxError
+    from plantdx.training import render_command
+    from plantdx.training.runner import prepare_run
+
+    try:
+        prepared = prepare_run(args.config, dataset_dir=args.dataset_dir)
+    except PlantDxError as exc:
+        print(f"plantdx prepare-training: {exc}", file=sys.stderr)
+        return 1
+    _print_prepared(prepared)
+    print("\nNo training was started. To launch it, run:\n")
+    print(f"    {render_command(prepared.argv)}\n")
+    return 0
+
+
+def _run_train(args: argparse.Namespace) -> int:
+    """Handle ``plantdx train``: prepare, then LAUNCH mlx-vlm unless ``--dry-run``."""
+    from plantdx.core.exceptions import PlantDxError
+    from plantdx.training import render_command
+    from plantdx.training.runner import launch, prepare_run
+
+    try:
+        prepared = prepare_run(args.config, dataset_dir=args.dataset_dir)
+    except PlantDxError as exc:
+        print(f"plantdx train: {exc}", file=sys.stderr)
+        return 1
+
+    if args.crop is not None and args.crop != prepared.cfg.data.crop:
+        print(
+            f"plantdx train: --crop {args.crop!r} does not match config crop "
+            f"{prepared.cfg.data.crop!r}",
+            file=sys.stderr,
+        )
+        return 1
+    if args.model is not None and args.model.replace(".", "_").replace("-", "_") not in (
+        prepared.cfg.model.name,
+        prepared.cfg.model.name.replace("_", ""),
+    ):
+        print(
+            f"plantdx train: --model {args.model!r} does not match config model "
+            f"{prepared.cfg.model.name!r}",
+            file=sys.stderr,
+        )
+        return 1
+
+    _print_prepared(prepared)
+    if args.dry_run:
+        print("\n--dry-run: no training started. Command that would run:\n")
+        print(f"    {render_command(prepared.argv)}\n")
+        return 0
+
+    log_path = Path(prepared.cfg.logging.log_dir) / "train.log"
+    print(f"\nStarting training (mlx-vlm). Console output tee'd to {log_path}\n", flush=True)
+    code = launch(prepared, log_path=log_path)
+    print(f"\nTraining process exited with code {code}. Adapter: {prepared.layout.adapter_path}")
+    return code
+
+
+def _run_infer(args: argparse.Namespace) -> int:
+    """Handle ``plantdx infer``: caption a single image or a folder."""
+    import json as _json
+
+    from plantdx.core.exceptions import PlantDxError
+    from plantdx.training.inference import caption_folder, caption_image, load_model
+
+    try:
+        loaded = load_model(args.model_path, adapter_path=args.adapter)
+        if args.image is not None:
+            results = [
+                caption_image(
+                    loaded,
+                    args.image,
+                    instruction=args.instruction,
+                    max_tokens=args.max_tokens,
+                    temperature=args.temperature,
+                )
+            ]
+        else:
+            results = caption_folder(
+                loaded,
+                args.folder,
+                instruction=args.instruction,
+                max_tokens=args.max_tokens,
+                temperature=args.temperature,
+            )
+    except PlantDxError as exc:
+        print(f"plantdx infer: {exc}", file=sys.stderr)
+        return 1
+
+    if args.json:
+        print(_json.dumps([r.__dict__ for r in results], indent=2))
+    else:
+        for r in results:
+            print(f"{r.image_path}\n  {r.caption}\n")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point. Returns a process exit code."""
     parser = build_parser()
@@ -664,6 +827,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_validate(args)
     if args.command == "corpus":
         return _run_corpus(args)
+    if args.command == "prepare-training":
+        return _run_prepare_training(args)
+    if args.command == "train":
+        return _run_train(args)
+    if args.command == "infer":
+        return _run_infer(args)
 
     try:
         _not_implemented(args.command)

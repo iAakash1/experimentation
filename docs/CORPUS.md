@@ -74,6 +74,33 @@ duplicate sentence, grammar, modifier legality, observability legality (visual
 captions assert nothing non-observable), confidence = weakest link, **no severity
 stage token**, and traceability (evidence + observability recomputed and matched).
 
+## Realization quality (RC1 hardening)
+
+The realization engine applies several deterministic quality rules so captions
+read naturally without any post-hoc editing of individual outputs:
+
+- **No parenthetical leakage** — DKB disambiguation notes on quality values
+  ("yellow (halo)", "reddish (early)") and spelling notes on disease names
+  ("sooty mould (sooty mold)") are stripped in the concept builder.
+- **Noun-phrase-only signs** — DKB clauses ("young leaves distort", "begin on
+  oldest leaves") are filtered out of slots that need a noun phrase.
+- **Redundancy suppression** — an optional modifier already conveyed by the
+  primary sign is dropped (no "black coating … black", no "… on the lamina … on
+  the lamina"), and an agent reference that merely restates the disease name is
+  dropped (viruses).
+- **Adjacent-duplicate collapse** — the generator collapses a repeated word or
+  short span introduced by slot joins.
+- **Severity honesty at source** — realizations carrying a stage token
+  ("severe", "advanced") are filtered before generation (the `V-CAP-11`
+  validator remains as defense in depth).
+- **Bounded per-realization variants** — concepts with several DKB phrasings
+  yield distinct, still-traceable captions, so sparse diseases and the healthy
+  class stay well covered without any duplicate strings.
+
+`statistics.json` reports the full lexical-diversity battery (distinct-1/2/3,
+unique n-gram counts, lexical entropy, sentence-opener diversity, mean reuse) and
+per-disease balance so linguistic quality is measurable and version-controlled.
+
 ## Guarantees
 
 - **Deterministic.** No timestamps, no randomness (seed-controlled choices only);

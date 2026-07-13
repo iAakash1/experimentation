@@ -60,6 +60,38 @@ def test_captions_start_capital_end_period(bundle: tuple[Any, Any, Any]) -> None
 
 @pytest.mark.unit
 @pytest.mark.requires_dkb
+def test_no_ontology_parenthetical_leakage(bundle: tuple[Any, Any, Any]) -> None:
+    """RC1 W1: DKB disambiguation parentheticals must not reach captions."""
+    _, _, (corpus, _report) = bundle
+    for c in corpus.captions:
+        for leak in ("(halo)", "(early)", "(necrotic galls)", "(smooth)", "(sooty mold)"):
+            assert leak not in c.text, c.text
+
+
+@pytest.mark.unit
+@pytest.mark.requires_dkb
+def test_no_adjacent_duplicate_words(bundle: tuple[Any, Any, Any]) -> None:
+    """RC1 W3: no caption repeats a word back-to-back."""
+    _, _, (corpus, _report) = bundle
+    for c in corpus.captions:
+        assert not re.search(r"\b(\w+)\s+\1\b", c.text, re.IGNORECASE), c.text
+
+
+@pytest.mark.unit
+@pytest.mark.requires_dkb
+def test_disease_balance_and_healthy_coverage(bundle: tuple[Any, Any, Any]) -> None:
+    """RC1 W5/W6: every disease (incl. healthy) has meaningful coverage."""
+    _, _, (corpus, _report) = bundle
+    counts: dict[str, int] = {}
+    for c in corpus.captions:
+        counts[c.disease_id] = counts.get(c.disease_id, 0) + 1
+    assert min(counts.values()) >= 12  # sparse diseases still well covered
+    healthy = [c for c in corpus.captions if c.condition_type == "HealthyState"]
+    assert len(healthy) >= 24
+
+
+@pytest.mark.unit
+@pytest.mark.requires_dkb
 def test_condition_and_crop_filters(bundle: tuple[Any, Any, Any]) -> None:
     models, library, _ = bundle
     from plantdx.corpus import build_corpus

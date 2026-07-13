@@ -12,7 +12,7 @@ from plantdx.corpus import build_corpus, serialization
 # Golden content hash of the corpus built from the real DKB + template library.
 # A change is a semantic event (any upstream change or template edit) requiring a
 # reviewed version bump.
-GOLDEN_HASH = "sha256:9f329437115c6b470bee2064378bff379c523bd7c1328cdaaa999625b5341953"
+GOLDEN_HASH = "sha256:1225eb8605edb71839f89618bfdcd4a1abba414869f64c1fdc5951ee865ba089"
 
 
 @pytest.mark.unit

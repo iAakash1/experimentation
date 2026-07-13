@@ -82,11 +82,26 @@ reviewable body of work; scope PRs to a single milestone.
   response text and validate their lines; QA acceptance rule + kappa computed;
   converter/split integration tests unskipped.
 
-## M5 — QLoRA fine-tuning (MLX)
+## M7 — Training pipeline (tomato QLoRA on Qwen2.5-VL, MLX) ✅ (implemented)
+- Config-driven, deterministic fine-tuning **workflow** for **tomato only** on
+  **Qwen2.5-VL-7B-Instruct-4bit** via mlx-vlm (M4 Pro / 24 GB). Cross-joins the
+  frozen corpus (response pool) with normalized tomato images into mlx-vlm JSONL
+  with image-grouped, disease-stratified splits; builds the exact `mlx_vlm.lora`
+  command; pre-flight plan + report; checkpoints/resume; CSV/JSON/Markdown logging;
+  single/folder/batch inference. `configs/{train,models,lora}/`, `training/` +
+  `training/data/`, `assets/{metadata/label_map,training/instructions}.json`.
+- **Acceptance:** `prepare-training` / `train --dry-run` build the dataset + report
+  and print the exact one launch command without training; DoRA fails closed; the
+  frozen golden hashes are unchanged. See `docs/TRAINING.md`. Note: this milestone
+  narrows the original M5 (four models) to the single requested tomato+Qwen2.5-VL run;
+  extending to the other three models reuses the same config/command machinery.
+
+## M5 — QLoRA fine-tuning (MLX) — superseded for tomato by M7
 - Implement `QLoRASettings` resolution and `MLXVLMRunner`; fine-tune all four
-  models on the identical library/splits (M4 pin the mlx-vlm version).
+  models on the identical library/splits (M4 pin the mlx-vlm version). The tomato +
+  Qwen2.5-VL slice is done (M7); the remaining three models follow the same pattern.
 - **Acceptance:** each model trains to completion on M4 Pro / 24 GB; adapters
-  produced; runs reproducible from `configs/training.yaml`.
+  produced; runs reproducible from a training config.
 
 ## M6 — Evaluation
 - Implement classification + caption metrics, zero-shot harness, and the

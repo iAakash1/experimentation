@@ -50,6 +50,7 @@ def _oxford(phrases: list[str], conj: str) -> str:
 def _normalize(text: str) -> str:
     """Deterministic surface repair so any slot-deletion still reads grammatically."""
     s = re.sub(r"\s+", " ", text).strip()
+    s = _collapse_repeats(s)  # "raised raised" / "on the lamina on the lamina" -> once
     s = re.sub(r"\(\s+", "(", s)  # no space after "("
     s = re.sub(r"\s+([,.;:!?)])", r"\1", s)  # no space before closing punctuation
     s = re.sub(r"[,;:]\s*(?=[.;:])", "", s)  # drop a comma/semicolon before another stop
@@ -61,6 +62,14 @@ def _normalize(text: str) -> str:
     if s and s[-1] not in ".!?":
         s += "."
     return _capitalize_sentences(s)
+
+
+def _collapse_repeats(s: str) -> str:
+    """Collapse an immediately repeated word or short span (a slot-join artifact)."""
+    for span in (3, 2, 1):  # longest span first so "on the lamina on the lamina" wins
+        inner = r"\w+" + r"(?:\s+\w+)" * (span - 1)
+        s = re.sub(rf"\b({inner})\s+\1\b", r"\1", s, flags=re.IGNORECASE)
+    return s
 
 
 def _fix_articles(s: str) -> str:

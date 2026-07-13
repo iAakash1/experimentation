@@ -12,7 +12,7 @@ from plantdx.concepts import build_concept_models, compute_statistics, serializa
 # Golden content hash of the concept models derived from the real 18-condition
 # DKB. A change here is a semantic event (DKB / ontology / vocabulary / concept
 # policy change) and must be a reviewed version bump.
-GOLDEN_HASH = "sha256:cfe5c2764f36191f42803e52a40d294ab88e2181fed29a9d012bd9ba0a59dcf8"
+GOLDEN_HASH = "sha256:e6f4870b777d63864d5e33078c9b8183cb49bcb89ab68ea40f471a4791288cb3"
 
 
 @pytest.mark.unit

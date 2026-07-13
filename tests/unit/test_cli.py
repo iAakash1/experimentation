@@ -33,7 +33,6 @@ def test_no_command_prints_help_and_succeeds() -> None:
         ["dataset", "build"],
         ["dataset", "convert", "--model", "qwen3_vl"],
         ["qa", "sample"],
-        ["train", "--model", "qwen3_vl"],
         ["evaluate", "--model", "qwen3_vl"],
     ],
 )
@@ -41,6 +40,21 @@ def test_stubbed_commands_exit_two(argv: list[str], capsys: pytest.CaptureFixtur
     # Stubbed stages return exit code 2 with a milestone message (not a traceback).
     assert main(argv) == 2
     assert "Milestone" in capsys.readouterr().err
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["prepare-training", "--config", "configs/train/qwen25vl_tomato.yaml"],
+        ["train", "--config", "configs/train/qwen25vl_tomato.yaml", "--dry-run"],
+        ["infer", "--image", "leaf.JPG"],
+    ],
+)
+def test_training_commands_parse(argv: list[str]) -> None:
+    # The M7 training commands are implemented (not stubs) and parse cleanly.
+    args = build_parser().parse_args(argv)
+    assert args.command == argv[0]
 
 
 @pytest.mark.unit

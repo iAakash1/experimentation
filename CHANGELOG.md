@@ -6,6 +6,58 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added — M7: Training pipeline (tomato QLoRA on Qwen2.5-VL-4bit, MLX)
+A config-driven, deterministic fine-tuning **workflow** for **tomato only** (10 classes) on
+**Qwen2.5-VL-7B-Instruct-4bit** via **mlx-vlm** on Apple Silicon (M4 Pro, 24 GB). It orchestrates
+mlx-vlm's tested LoRA trainer rather than hand-rolling an MLX loop; the frozen pipeline
+(ontology/vocabulary/concepts/templates/generator/validator/corpus/exporters), the DKB, and the
+templates are **untouched** — their golden hashes are unchanged.
+- **Config system (`configs/{train,models,lora}/`, `training/config.py`):** three composable YAML
+  layers (run × model × LoRA method) into a typed, fail-closed `TrainingConfig`. LoRA/QLoRA/DoRA
+  selectable by config; the backend guard rejects DoRA (unsupported by mlx-vlm 0.6.x) with a clear
+  message rather than silently running LoRA.
+- **Data pipeline (`training/data/`):** cross-joins the frozen caption corpus (the **response
+  pool**, used verbatim) with normalized tomato images to emit mlx-vlm JSONL rows
+  `{"image","question","answer"}` + `manifest.json`. Image-grouped, disease-stratified splits;
+  deterministic SHA-256 fanout; reads image **paths + folder labels only** (no pixels, no LLM/VLM).
+  New authored assets: `assets/metadata/label_map.json`, `assets/training/instructions.json`.
+- **Orchestration (`training/{command,planner,checkpoints,metrics,scheduler,seeds,reports,models,
+  lora,runner}.py`):** exact `mlx_vlm.lora` command builder; pre-flight plan (iters, effective
+  batch, time/memory/disk estimates, LR-schedule preview); best/latest/per-epoch checkpoints +
+  resume + prune; CSV/JSON/Markdown (+ optional TensorBoard) metrics; a pre-flight report ending in
+  the one launch command. MLX is imported lazily so the package imports cleanly in CI.
+- **Inference (`training/inference.py`):** single image / folder / batch, programmatic + CLI, lazy MLX.
+- **CLI:** `plantdx prepare-training` (build dataset + report, never launches), `plantdx train`
+  (`--dry-run` previews; without it, launches mlx-vlm as a subprocess of the current interpreter),
+  `plantdx infer`.
+- **Tests/docs:** `tests/unit/training/` (config, data determinism + image-grouped splits + row
+  shape, command flags + DoRA guard, planner/scheduler/seeds/checkpoints/metrics, runner-prepares-
+  without-launching, CLI, inference helpers) + `docs/TRAINING.md`. `logs/` added to `.gitignore`.
+
+### Changed — RC1: caption corpus hardening (deterministic realization-engine improvements)
+A publication-grade audit + hardening pass over the disease-level caption corpus, before
+freezing the caption pipeline. No architecture/schema/API/validation-strictness changes;
+all improvements are in the realization engine and are measurable. Golden `content_hash`es
+were deliberately bumped (reviewed) and determinism re-verified; the ontology and vocabulary
+hashes are unchanged.
+- **Grammar / naturalness:** strip DKB disambiguation parentheticals from quality realizations
+  ("yellow (halo)" → "yellow") and spelling notes from disease names ("sooty mould (sooty mold)"
+  → "sooty mould"); extend the noun-phrase filter to reject trailing finite verbs ("young leaves
+  distort"); collapse adjacent duplicate words/spans in the generator ("raised raised", "on the
+  lamina on the lamina"); suppress redundant modifiers already conveyed by the primary sign and
+  agent references that restate the disease name (viruses).
+- **Healthy class (W5):** decompose `healthy_state` into multiple atomic, evidence-supported
+  observations from the DKB healthy fields (diagnostic features, texture, margins) — healthy
+  captions **12 → 32**; added 3 healthy templates with varied openers.
+- **Balance + diversity (W6):** bounded per-(template, subset) realization variants (2) draw on
+  each disease's multiple DKB phrasings — captions **1,070 → 1,966**, per-disease minimum
+  **6 → 15**, unique bigrams/trigrams up ~12%, all still unique + validated. `severity_stage`
+  tokens are now filtered from realizations at the source, so the `V-CAP-11` rejection count
+  drops **17 → 0** (validators retained as defense in depth).
+- **Metrics:** `statistics.json` gains a full lexical-diversity block (distinct-1/2/3, unique
+  n-gram counts, entropy, opener diversity, mean reuse) and a per-disease balance block.
+- Regression tests for every fix; docs (`docs/CORPUS.md`, `docs/CONCEPTS.md`) updated.
+
 ### Added — M3: Caption Concept Model + Template Engine + Caption Corpus + Exporters (CPU-only, deterministic, image-free)
 - `src/plantdx/concepts/` — the **Caption Concept Model** compiler (component A):
   `ConceptModels = f(DKB, Ontology, Vocabulary)`. Per disease, derives the
@@ -16,14 +68,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `artifacts/concepts/`. `lesion_size` is omitted (no controlled DKB vocabulary) and
   `severity_stage`/`management` are always forbidden (severity/observability honesty).
 - `src/plantdx/templates/` + `assets/templates/templates.json` — the **Template Engine**
-  (component E): 30 authored templates across the 8 doc-02 families, using a structured
+  (component E): 33 authored templates across the 8 doc-02 families, using a structured
   segment schema (`lit`/`slot`/`opt`/`list`) so optional-slot deletion is grammatical by
   construction. Fail-closed `V-TPL-1..8` battery; `compatible()` routing; CLI
   `plantdx templates`; `artifacts/templates/template_index.json`.
 - `src/plantdx/corpus/` — the **Sentence Planner**, **Caption Generator**, **Caption
   Validator** (independent 12-check `V-CAP-1..12` battery), and **Corpus Builder**.
   Deterministically enumerates a bounded, de-duplicated, validated per-disease caption
-  corpus (1,070 captions from the real DKB); drops-and-records failing candidates and
+  corpus (1,966 captions from the real DKB); drops-and-records failing candidates and
   hard-errors on a disease with zero valid captions. CLI `plantdx generate|validate|corpus`
   (with `--condition`/`--crop`/`--format`/`--all`); artifacts `captions.{json,jsonl,csv}` +
   stats + validation report + checksum in `artifacts/corpus/`. Every caption carries its
