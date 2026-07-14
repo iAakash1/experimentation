@@ -1,7 +1,13 @@
 """Synthetic fixtures for evaluation-pipeline tests.
 
-Everything here is either pure Python or reads the real, frozen, checked-in
-DKB/vocabulary artifacts (never invented data) -- no mlx-vlm, no real inference.
+Everything here is either pure Python or built from the real, frozen,
+checked-in DKB (never invented data) -- no mlx-vlm, no real inference. The
+compiled vocabulary / symptom lexicon are NOT read from `artifacts/vocabulary/`
+(gitignored, generated, absent on a clean checkout / CI) -- they are compiled
+fresh, in-process, from the committed DKB using the exact same deterministic
+`plantdx vocabulary` pipeline, into a session-scoped temp directory. This is
+the same pattern `tests/unit/corpus/conftest.py`'s `bundle` fixture already
+uses for the corpus-generation tests.
 """
 
 from __future__ import annotations
@@ -12,6 +18,7 @@ from pathlib import Path
 import pytest
 
 _ROOT = Path(__file__).resolve().parents[3]
+_DKB_PATH = _ROOT / "knowledge_base" / "dkb.json"
 
 TOMATO_DISEASES = (
     "tomato_bacterial_spot",
@@ -25,28 +32,56 @@ TOMATO_DISEASES = (
 def lexicon():
     from plantdx.evaluation.classification import build_lexicon
 
-    return build_lexicon("tomato", dkb_path=_ROOT / "knowledge_base" / "dkb.json")
+    return build_lexicon("tomato", dkb_path=_DKB_PATH)
+
+
+@pytest.fixture(scope="session")
+def compiled_vocabulary_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Compile vocabulary.json + symptom_lexicon.json fresh from the real DKB.
+
+    Runs the actual compiler pipeline (DKB -> ontology -> vocabulary), the same
+    one `plantdx vocabulary` runs, in-process and once per test session, and
+    writes its real output artifacts to a temp directory -- never a hardcoded
+    path, never a fixture depending on something a clean checkout doesn't have.
+    """
+    from plantdx.ontology.domain import compile_ontology, validate_ontology
+    from plantdx.vocabulary.domain import (
+        build_vocabulary_result,
+        compute_statistics,
+        validate_vocabulary_result,
+        write_artifacts,
+    )
+
+    onto = compile_ontology(_DKB_PATH)
+    validate_ontology(onto)
+    vocab = build_vocabulary_result(onto.ontology)
+    report = validate_vocabulary_result(vocab, onto.ontology)
+    stats = compute_statistics(vocab, report["status"])
+
+    out_dir = tmp_path_factory.mktemp("compiled_vocabulary")
+    write_artifacts(vocab, out_dir, stats, report)
+    return out_dir
 
 
 @pytest.fixture
-def hallucination_lex():
+def hallucination_lex(compiled_vocabulary_dir: Path):
     from plantdx.evaluation.hallucination import build_hallucination_lexicons
 
     return build_hallucination_lexicons(
         "tomato",
-        dkb_path=_ROOT / "knowledge_base" / "dkb.json",
-        vocabulary_path=_ROOT / "artifacts" / "vocabulary" / "vocabulary.json",
+        dkb_path=_DKB_PATH,
+        vocabulary_path=compiled_vocabulary_dir / "vocabulary.json",
     )
 
 
 @pytest.fixture
-def clinical_lex():
+def clinical_lex(compiled_vocabulary_dir: Path):
     from plantdx.evaluation.clinical import build_clinical_lexicons
 
     return build_clinical_lexicons(
         "tomato",
-        dkb_path=_ROOT / "knowledge_base" / "dkb.json",
-        symptom_lexicon_path=_ROOT / "artifacts" / "vocabulary" / "symptom_lexicon.json",
+        dkb_path=_DKB_PATH,
+        symptom_lexicon_path=compiled_vocabulary_dir / "symptom_lexicon.json",
     )
 
 
