@@ -167,11 +167,21 @@ Training extras (Apple Silicon only):
 pip install -e ".[train]"        # mlx, mlx-vlm
 ```
 
+Evaluation extras — a **separate environment** from `[train]` (see
+[`docs/EVALUATION.md`](docs/EVALUATION.md) for why): matplotlib, scikit-learn,
+scipy, and official reference implementations of BLEU/ROUGE/METEOR/CIDEr/
+BERTScore (nltk, pycocoevalcap, rouge-score, bert-score+torch).
+
+```bash
+make install-eval                # pip install -e ".[eval]" + cache WordNet + BERTScore model, once
+```
+
 ## Quick Start
 
 > ⚠️ `audit`, `normalize`, `ontology`, `vocabulary`, `concepts`, `templates`, `generate`,
-> `validate`, and `corpus` are implemented (CPU-only, deterministic). Later-stage commands
-> still raise `NotImplementedError` until their milestone lands.
+> `validate`, `corpus`, `prepare-training`, `train`, `infer`, and `evaluate` are
+> implemented. `dataset` and `qa` still raise `NotImplementedError` until their
+> milestone (M4) lands.
 
 ```bash
 plantdx --help                                           # top-level CLI

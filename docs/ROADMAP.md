@@ -103,9 +103,21 @@ reviewable body of work; scope PRs to a single milestone.
 - **Acceptance:** each model trains to completion on M4 Pro / 24 GB; adapters
   produced; runs reproducible from a training config.
 
-## M6 — Evaluation
-- Implement classification + caption metrics, zero-shot harness, and the
-  zero-shot-vs-fine-tuned comparison, including the diagnostic confusable-pair
-  breakdown.
-- **Acceptance:** comparison report reproduces on test + diagnostic splits;
-  metrics wired to the paper tables.
+## M6 — Evaluation (tomato base vs. fine-tuned) ✅ (implemented)
+- Two-stage (`--stage inference|analyze|all`) base-vs-fine-tuned comparison on
+  the frozen tomato test split: official BLEU/ROUGE/METEOR/CIDEr/BERTScore,
+  full classification metrics + confusion matrices, per-disease breakdown,
+  DKB-grounded hallucination + clinical-correctness detection, response
+  quality, latency, paired statistical significance (t-test/Wilcoxon/
+  bootstrap), publication-quality figures, and a reproducibility manifest.
+  `evaluation/`, `configs` via CLI flags (no YAML layer needed at this size),
+  `pyproject.toml`'s `[eval]` extra + `scripts/setup_eval_env.sh`.
+- **Acceptance:** `plantdx evaluate` reproduces byte-identical predictions
+  given the same adapter/seed; every required output file is written; split
+  leakage is a hard failure; 119 tests pass with 0 failures (BERTScore tests
+  skip cleanly, not silently, where a pre-existing environment conflict
+  blocks it — verified 0 skips in a clean environment). See
+  `docs/EVALUATION.md`. Note: this milestone covers the single tomato +
+  Qwen2.5-VL model this project actually trained (M7), not the four-model
+  zero-shot comparison matrix originally scoped here — extending to
+  additional models/mango reuses the same two-stage machinery.

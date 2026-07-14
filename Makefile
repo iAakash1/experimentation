@@ -2,7 +2,7 @@
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
 
-.PHONY: help install install-dev install-train hooks fmt lint type test test-unit test-integration \
+.PHONY: help install install-dev install-train install-eval hooks fmt lint type test test-unit test-integration \
         cov clean docs check
 
 help: ## Show this help
@@ -17,6 +17,9 @@ install-dev: ## Install package + dev tooling
 
 install-train: ## Install training extras (Apple Silicon / MLX)
 	pip install -e ".[train]"
+
+install-eval: ## Install + cache the evaluation metrics stack (--stage analyze env)
+	./scripts/setup_eval_env.sh
 
 hooks: ## Install pre-commit hooks
 	pre-commit install

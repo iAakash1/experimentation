@@ -6,6 +6,62 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added — M6: Evaluation pipeline (base vs. fine-tuned, tomato)
+A two-stage, deterministic evaluation comparing the fine-tuned tomato QLoRA
+adapter against the base Qwen2.5-VL-7B-Instruct-4bit model on the frozen
+`test.jsonl` split (910 images), with identical prompts and temperature-0
+decoding for both. Never retrains, never regenerates data, never touches the
+frozen DKB/ontology/vocabulary/concepts/templates/corpus/training pipeline.
+- **Two-stage architecture** (`--stage inference|analyze|all`): stage 1 (lazy
+  mlx-vlm) writes `predictions.jsonl`; stage 2 (lazy metrics stack) reads only
+  that frozen artifact. The two dependency sets (mlx-vlm vs. matplotlib/
+  scikit-learn/scipy/nltk/pycocoevalcap/rouge-score/bert-score+torch) are never
+  installed together — `pyproject.toml`'s new `[eval]` extra + `make
+  install-eval` (`scripts/setup_eval_env.sh`) install and one-time-cache
+  WordNet + the BERTScore backbone so the analyze stage never touches the
+  network.
+- **Split-integrity guard** (`evaluation/integrity.py`): reads `train.jsonl` +
+  the target split read-only and hard-fails (`InvariantViolation`) on any
+  image-path overlap; 0 overlap on the real frozen tomato dataset.
+- **Official reference metric implementations** (never approximated):
+  BLEU-1..4 + CIDEr via `pycocoevalcap` (CIDEr scored over the full batch —
+  its TF-IDF degenerates on a single pair), ROUGE-L via Google's
+  `rouge-score`, METEOR via `nltk.translate.meteor_score` + WordNet, BERTScore
+  via `bert-score`. Disease-label extraction, hallucination detection
+  (other-disease/pathogen/treatment/crop/impossible-symptom), and clinical
+  correctness (severity-honesty, forbidden terminology) are deterministic
+  lexicon matching grounded in the frozen DKB and compiled
+  `artifacts/vocabulary/` (never an LLM judge).
+- **Full metrics suite**: classification (accuracy/precision/recall/macro-
+  weighted-micro-F1/balanced accuracy + confusion matrices) via scikit-learn;
+  per-disease breakdown; response-quality heuristics (fluency/redundancy/
+  repetition/lexical diversity — no `language-tool-python` dependency);
+  latency/throughput/memory aggregation; paired statistical comparison
+  (t-test, Wilcoxon, bootstrap CI via `scipy.stats`, NaN-free on degenerate
+  zero-variance inputs); a reproducibility manifest (git commit, package
+  versions, adapter/corpus/ontology/vocabulary checksums, hardware).
+- **Publication-quality figures** (`evaluation/visualize.py`, matplotlib
+  only): a small CVD-validated color system (fixed categorical hue order, a
+  one-hue sequential ramp for the confusion-matrix heatmap), PNG+SVG for
+  every chart, metrics grouped by comparable scale (CIDEr/BERTScore never
+  share an axis with 0–1-bounded metrics).
+- **CLI**: `plantdx evaluate` (`--stage`, `--adapter`, `--dataset`, `--split`,
+  `--model`, `--output-dir`, `--batch-size`, `--max-samples`, `--seed`,
+  `--device`), replacing the M6 stub. Every output file the milestone
+  requires is written under `<output_dir>/`.
+- **Tests/docs**: `tests/unit/evaluation/` (119 tests; BERTScore-dependent
+  tests skip cleanly with a clear reason where the environment's numba/NumPy
+  ABI conflict blocks it, and were separately verified to pass with 0 skips
+  in a clean environment) + `docs/EVALUATION.md` + README setup section.
+- **A real, pre-existing environment bug found and documented, not
+  patched-around silently**: `bert-score`'s `AutoModel.from_pretrained` path
+  transitively imports `librosa` → `numba`, and this shared environment's
+  `numba==0.56.4` predates NumPy 2.x, causing `ImportError:
+  numpy.core.multiarray failed to import`. Verified unrelated to PlantDx (a
+  clean venv with no numba/librosa installed works correctly); `text_metrics.py`
+  detects this specific failure and reports the exact fix
+  (`pip install -U "numba>=0.59" "llvmlite>=0.42"`) instead of a raw traceback.
+
 ### Added — M7: Training pipeline (tomato QLoRA on Qwen2.5-VL-4bit, MLX)
 A config-driven, deterministic fine-tuning **workflow** for **tomato only** (10 classes) on
 **Qwen2.5-VL-7B-Instruct-4bit** via **mlx-vlm** on Apple Silicon (M4 Pro, 24 GB). It orchestrates

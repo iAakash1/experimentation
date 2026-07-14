@@ -32,7 +32,7 @@ Usage:
     plantdx prepare-training --config configs/train/qwen25vl_tomato.yaml
     plantdx train            --config configs/train/qwen25vl_tomato.yaml [--dry-run]
     plantdx infer            --adapter checkpoints/<run>/ --image leaf.JPG
-    plantdx evaluate         --model qwen3_vl
+    plantdx evaluate         --stage all [--adapter ...] [--split test] [--max-samples N]
 """
 
 from __future__ import annotations
@@ -48,7 +48,6 @@ from plantdx.__about__ import __version__
 _MILESTONE = {
     "dataset": "Milestone 4",
     "qa": "Milestone 4",
-    "evaluate": "Milestone 6",
 }
 
 
@@ -246,8 +245,40 @@ def build_parser() -> argparse.ArgumentParser:
     p_infer.add_argument("--temperature", type=float, default=0.0, help="Sampling temperature")
     p_infer.add_argument("--json", action="store_true", help="Emit JSON instead of text")
 
-    p_eval = sub.add_parser("evaluate", help="Evaluate zero-shot vs fine-tuned (M6)")
-    p_eval.add_argument("--model", required=True, help="Target model key")
+    # evaluate: base vs. fine-tuned comparison on the frozen test split (M6)
+    p_eval = sub.add_parser(
+        "evaluate", help="Evaluate the fine-tuned tomato model against the base model"
+    )
+    p_eval.add_argument(
+        "--stage",
+        default="all",
+        choices=["inference", "analyze", "all"],
+        help="inference (needs mlx-vlm) | analyze (needs the [eval] extra) | all (both)",
+    )
+    p_eval.add_argument(
+        "--adapter",
+        default=None,
+        help="Path to the adapter checkpoint directory (containing adapter_config.json "
+        "+ adapters.safetensors); a direct path to adapters.safetensors also works",
+    )
+    p_eval.add_argument(
+        "--dataset", default=None, help="Dataset dir with train/validation/test.jsonl"
+    )
+    p_eval.add_argument(
+        "--split", default="test", choices=["train", "validation", "test"], help="Split to evaluate"
+    )
+    p_eval.add_argument("--model", default=None, help="Base model repo id or path")
+    p_eval.add_argument(
+        "--output-dir", default=None, help="Report output dir (default: reports/<run>/evaluation)"
+    )
+    p_eval.add_argument("--batch-size", type=int, default=1, help="Inference batch size")
+    p_eval.add_argument(
+        "--max-samples", type=int, default=None, help="Evaluate only the first N samples"
+    )
+    p_eval.add_argument("--seed", type=int, default=20260711, help="Deterministic seed")
+    p_eval.add_argument(
+        "--device", default="auto", choices=["auto", "cpu", "gpu"], help="Informational; recorded"
+    )
 
     return parser
 
@@ -800,6 +831,37 @@ def _run_infer(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_evaluate(args: argparse.Namespace) -> int:
+    """Handle ``plantdx evaluate``: base vs. fine-tuned on the frozen test split."""
+    from plantdx.core.exceptions import PlantDxError
+    from plantdx.evaluation.config import resolve_eval_config
+    from plantdx.evaluation.runner import run_evaluation
+
+    try:
+        cfg = resolve_eval_config(
+            stage=args.stage,
+            model=args.model,
+            adapter=args.adapter,
+            dataset=args.dataset,
+            split=args.split,
+            output_dir=args.output_dir,
+            batch_size=args.batch_size,
+            max_samples=args.max_samples,
+            seed=args.seed,
+            device=args.device,
+        )
+        written = run_evaluation(cfg)
+    except PlantDxError as exc:
+        print(f"plantdx evaluate: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"Evaluation ({cfg.stage}) complete. {len(written)} artifact(s) written.")
+    for key in ("integrity_check", "predictions_path", "evaluation_summary_md"):
+        if key in written:
+            print(f"  {key}: {written[key]}")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point. Returns a process exit code."""
     parser = build_parser()
@@ -833,6 +895,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_train(args)
     if args.command == "infer":
         return _run_infer(args)
+    if args.command == "evaluate":
+        return _run_evaluate(args)
 
     try:
         _not_implemented(args.command)

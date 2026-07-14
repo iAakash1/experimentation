@@ -61,6 +61,21 @@ train = [
     "mlx>=0.15",
     "mlx-vlm>=0.1.0",
 ]
+# Evaluation metrics stack (Milestone 6, --stage analyze). Deliberately pinned:
+# these compute the paper's reported numbers and must not silently drift.
+# Never installed alongside `train` (see docs/EVALUATION.md for the two-env split).
+eval = [
+    "matplotlib>=3.8",
+    "scikit-learn>=1.4",
+    "scipy>=1.12",
+    "rouge-score==0.1.2",        # official ROUGE-L (Google Research reference implementation)
+    "nltk==3.10.0",              # official METEOR (nltk.translate.meteor_score) + WordNet
+    "pycocoevalcap==1.2",        # official BLEU-1..4 + CIDEr (MS-COCO caption eval toolkit)
+    "bert-score==0.3.13",        # official BERTScore
+    "torch>=2.0",                 # bert-score backend
+    "transformers>=4.0",          # bert-score backend
+    "psutil>=5.9",                # hardware/memory facts for the repro manifest
+]
 # Developer tooling.
 dev = [
     "ruff>=0.4",
@@ -128,7 +143,21 @@ show_error_codes = true
 files = ["src/plantdx"]
 
 [[tool.mypy.overrides]]
-module = ["datasketch.*", "sacrebleu.*", "mlx.*", "mlx_vlm.*", "language_tool_python.*"]
+module = [
+    "datasketch.*",
+    "sacrebleu.*",
+    "mlx.*",
+    "mlx_vlm.*",
+    "language_tool_python.*",
+    "nltk.*",
+    "pycocoevalcap.*",
+    "bert_score.*",
+    "rouge_score.*",
+    "psutil.*",
+    "sklearn.*",
+    "matplotlib.*",
+    "scipy.*",
+]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------------------
@@ -145,6 +174,7 @@ markers = [
     "benchmark: dataset-quality / diversity benchmark tests (may be slow)",
     "requires_dkb: needs knowledge_base/dkb.json present",
     "requires_mlx: needs Apple Silicon + MLX (training)",
+    "requires_eval_stack: needs the [eval] extra (nltk/pycocoevalcap/rouge-score/bert-score)",
 ]
 
 [tool.coverage.run]
