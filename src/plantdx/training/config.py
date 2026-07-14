@@ -65,7 +65,7 @@ class OptimConfig:
 
 @dataclass(frozen=True)
 class DataConfig:
-    """How the image x corpus training set is built (tomato only)."""
+    """How the image x corpus training set is built."""
 
     crop: str
     classes: tuple[str, ...]
@@ -79,6 +79,11 @@ class DataConfig:
     test_ratio: float
     split_seed: int
     image_glob: str = "*.JPG"
+    # Optional override for the instruction-paraphrase bank (default: the
+    # tomato-worded assets/training/instructions.json). Crops whose leaf noun
+    # differs from "tomato" must set this to a matching asset — the instruction
+    # text is literal model input, not just a label.
+    instructions_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -238,6 +243,7 @@ def _data(d: dict[str, Any]) -> DataConfig:
         test_ratio=float(d["test_ratio"]),
         split_seed=int(d["split_seed"]),
         image_glob=str(d.get("image_glob", "*.JPG")),
+        instructions_path=str(d["instructions_path"]) if d.get("instructions_path") else None,
     )
 
 

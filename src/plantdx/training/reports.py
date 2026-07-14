@@ -52,7 +52,7 @@ def _markdown(cfg: TrainingConfig, stats: DatasetStats, plan: PlanEstimate, argv
         f"- Seed: {cfg.seed} | grad_checkpoint: {cfg.grad_checkpoint} "
         f"| image_resize: {cfg.model.image_resize}",
         "",
-        "## Dataset (tomato only)",
+        f"## Dataset ({cfg.data.crop})",
         f"- Images discovered: **{stats.image_count}**",
         f"- Training rows: **{stats.row_count}** "
         f"(train {plan.train_rows} / val {plan.val_rows} / test {plan.test_rows})",

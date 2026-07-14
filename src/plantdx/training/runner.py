@@ -51,7 +51,9 @@ def prepare_run(
     check_method_supported(cfg.lora)  # reject e.g. dora before doing any work
 
     ds_dir = Path(dataset_dir) if dataset_dir else _DEFAULT_DATASET_ROOT / cfg.run_name / "dataset"
-    stats = build_training_dataset(cfg.data, output_dir=ds_dir)
+    stats = build_training_dataset(
+        cfg.data, output_dir=ds_dir, instructions_asset=cfg.data.instructions_path
+    )
     plan = build_plan(cfg, stats)
 
     layout = resolve_layout(cfg.checkpoint)
