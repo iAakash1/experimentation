@@ -8,6 +8,9 @@ import pytest
 
 from plantdx.evaluation.visualize import plot_confusion_matrix, plot_grouped_comparison
 
+pytest.importorskip("matplotlib", reason="matplotlib not installed (make install-eval)")
+pytestmark = pytest.mark.requires_eval_stack
+
 
 @pytest.mark.unit
 def test_plot_grouped_comparison_writes_png_and_svg(tmp_path: Path) -> None:

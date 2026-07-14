@@ -46,7 +46,9 @@ def test_token_overlap_empty_reference() -> None:
 
 
 @pytest.mark.unit
+@pytest.mark.requires_eval_stack
 def test_sentence_similarity_identical_is_high() -> None:
+    pytest.importorskip("sklearn", reason="scikit-learn not installed (make install-eval)")
     sims = _sentence_similarity(["a leaf shows spots"], ["a leaf shows spots"])
     assert sims[0] == pytest.approx(1.0)
 

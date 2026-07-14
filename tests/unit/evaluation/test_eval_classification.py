@@ -31,7 +31,9 @@ class TestExtraction:
 
 
 @pytest.mark.unit
+@pytest.mark.requires_eval_stack
 def test_classification_metrics_accuracy() -> None:
+    pytest.importorskip("sklearn", reason="scikit-learn not installed (make install-eval)")
     labels = ["a", "b", "c"]
     targets = ["a", "a", "b", "b", "c"]
     predictions = ["a", "b", "b", "b", "c"]  # 4/5 correct
@@ -42,7 +44,9 @@ def test_classification_metrics_accuracy() -> None:
 
 
 @pytest.mark.unit
+@pytest.mark.requires_eval_stack
 def test_classification_metrics_perfect_score() -> None:
+    pytest.importorskip("sklearn", reason="scikit-learn not installed (make install-eval)")
     labels = ["a", "b"]
     metrics = compute_classification_metrics(["a", "b", "a"], ["a", "b", "a"], labels)
     assert metrics.accuracy == 1.0
@@ -51,13 +55,17 @@ def test_classification_metrics_perfect_score() -> None:
 
 
 @pytest.mark.unit
+@pytest.mark.requires_eval_stack
 def test_classification_metrics_length_mismatch_raises() -> None:
+    pytest.importorskip("sklearn", reason="scikit-learn not installed (make install-eval)")
     with pytest.raises(ValueError, match="same length"):
         compute_classification_metrics(["a"], ["a", "b"], ["a", "b"])
 
 
 @pytest.mark.unit
+@pytest.mark.requires_eval_stack
 def test_unclassified_count() -> None:
+    pytest.importorskip("sklearn", reason="scikit-learn not installed (make install-eval)")
     labels = ["a", "unclassified"]
     metrics = compute_classification_metrics(
         ["a", "unclassified", "unclassified"], ["a", "a", "a"], labels

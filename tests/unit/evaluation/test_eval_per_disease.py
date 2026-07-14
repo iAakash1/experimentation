@@ -8,7 +8,9 @@ from plantdx.evaluation.per_disease import compute_per_disease_table
 
 
 @pytest.mark.unit
+@pytest.mark.requires_eval_stack
 def test_per_disease_table_shape_and_zero_sample_handling() -> None:
+    pytest.importorskip("sklearn", reason="scikit-learn not installed (make install-eval)")
     disease_ids = ["a", "b", "c"]  # "c" has zero ground-truth samples
     targets = ["a", "a", "b"]
     predictions = ["a", "b", "b"]
@@ -30,6 +32,8 @@ def test_per_disease_table_shape_and_zero_sample_handling() -> None:
 
 
 @pytest.mark.unit
+@pytest.mark.requires_eval_stack
 def test_length_mismatch_raises() -> None:
+    pytest.importorskip("sklearn", reason="scikit-learn not installed (make install-eval)")
     with pytest.raises(ValueError, match="same length"):
         compute_per_disease_table(["a"], ["a"], ["a", "a"], ["x"], [None], [False])

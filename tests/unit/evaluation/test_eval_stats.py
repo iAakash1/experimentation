@@ -24,7 +24,9 @@ def test_describe_empty() -> None:
 
 
 @pytest.mark.unit
+@pytest.mark.requires_eval_stack
 def test_compare_paired_detects_clear_improvement() -> None:
+    pytest.importorskip("scipy", reason="scipy not installed (make install-eval)")
     import random
 
     random.seed(1)
@@ -36,7 +38,9 @@ def test_compare_paired_detects_clear_improvement() -> None:
 
 
 @pytest.mark.unit
+@pytest.mark.requires_eval_stack
 def test_compare_paired_identical_samples_never_nan() -> None:
+    pytest.importorskip("scipy", reason="scipy not installed (make install-eval)")
     cmp = compare_paired("metric", [0.5] * 10, [0.5] * 10, seed=1)
     assert not math.isnan(cmp.t_p_value)
     assert not math.isnan(cmp.wilcoxon_p_value)
@@ -45,26 +49,34 @@ def test_compare_paired_identical_samples_never_nan() -> None:
 
 
 @pytest.mark.unit
+@pytest.mark.requires_eval_stack
 def test_compare_paired_constant_difference_never_nan() -> None:
+    pytest.importorskip("scipy", reason="scipy not installed (make install-eval)")
     cmp = compare_paired("metric", [0.5] * 10, [0.6] * 10, seed=1)
     assert not math.isnan(cmp.t_p_value)
     assert cmp.mean_difference == pytest.approx(0.1)
 
 
 @pytest.mark.unit
+@pytest.mark.requires_eval_stack
 def test_compare_paired_length_mismatch_raises() -> None:
+    pytest.importorskip("scipy", reason="scipy not installed (make install-eval)")
     with pytest.raises(ValueError, match="same length"):
         compare_paired("metric", [1.0, 2.0], [1.0], seed=1)
 
 
 @pytest.mark.unit
+@pytest.mark.requires_eval_stack
 def test_compare_paired_too_few_samples_raises() -> None:
+    pytest.importorskip("scipy", reason="scipy not installed (make install-eval)")
     with pytest.raises(ValueError, match="at least 2"):
         compare_paired("metric", [1.0], [2.0], seed=1)
 
 
 @pytest.mark.unit
+@pytest.mark.requires_eval_stack
 def test_bootstrap_ci_contains_mean_difference() -> None:
+    pytest.importorskip("scipy", reason="scipy not installed (make install-eval)")
     import random
 
     random.seed(7)

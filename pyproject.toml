@@ -46,7 +46,11 @@ dependencies = [
 [project.optional-dependencies]
 # Caption generation / diversity engine (Milestone 3+).
 generate = [
-    "numpy>=1.26",
+    # <2.5: numpy 2.5.0's bundled type stubs use PEP 695 `type X = ...` alias
+    # syntax, which mypy cannot parse under this project's `python_version =
+    # "3.10"` setting ("Type statement is only supported in Python 3.12 and
+    # greater"). Verified empirically: 2.4.6 passes, 2.5.0 does not.
+    "numpy>=1.26,<2.5",
     "tqdm>=4.66",
     "datasketch>=1.6",       # MinHash near-duplicate detection (diversity engine)
     "sacrebleu>=2.4",        # self-BLEU diversity metric
@@ -84,6 +88,14 @@ dev = [
     "pytest-cov>=5.0",
     "pre-commit>=3.7",
     "types-PyYAML>=6.0",
+    # numpy ships its own inline type stubs (py.typed) and is referenced (lazily,
+    # at runtime) by training/seeds.py, evaluation/stats.py, and
+    # evaluation/visualize.py. mypy's strict whole-tree check (`files =
+    # ["src/plantdx"]`) walks those modules regardless of the lazy import, so it
+    # needs numpy's types resolvable wherever `mypy` runs -- which per CI
+    # (`pip install -e ".[dev]"` then `mypy`) is exactly and only this extra.
+    # <2.5 for the same stub-syntax reason as the `generate` extra above.
+    "numpy>=1.26,<2.5",
 ]
 # Documentation.
 docs = [
