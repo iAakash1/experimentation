@@ -49,7 +49,7 @@ def test_ratios_must_sum_to_one(tmp_path: Path) -> None:
     base["data"]["test_ratio"] = 0.05
     p = tmp_path / "bad.yaml"
     p.write_text(yaml.safe_dump(base), encoding="utf-8")
-    with pytest.raises(ConfigError, match="sum to 1.0"):
+    with pytest.raises(ConfigError, match=r"sum to 1\.0"):
         load_training_config(p, base_dir=_ROOT)
 
 

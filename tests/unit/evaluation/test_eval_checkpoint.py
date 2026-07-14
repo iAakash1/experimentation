@@ -58,7 +58,7 @@ def test_missing_config_is_a_friendly_error(tmp_path: Path) -> None:
     half_written = tmp_path / "half_written"
     half_written.mkdir()
     (half_written / ADAPTER_WEIGHTS_NAME).write_bytes(b"x")  # config missing
-    with pytest.raises(DerivationError, match="adapter_config.json"):
+    with pytest.raises(DerivationError, match=r"adapter_config\.json"):
         resolve_adapter_dir(half_written)
 
 
@@ -67,7 +67,7 @@ def test_missing_weights_is_a_friendly_error(tmp_path: Path) -> None:
     half_written = tmp_path / "half_written2"
     half_written.mkdir()
     (half_written / ADAPTER_CONFIG_NAME).write_text("{}", encoding="utf-8")  # weights missing
-    with pytest.raises(DerivationError, match="adapters.safetensors"):
+    with pytest.raises(DerivationError, match=r"adapters\.safetensors"):
         resolve_adapter_dir(half_written)
 
 

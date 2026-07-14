@@ -33,7 +33,7 @@ def _run(spec_dict: dict[str, Any], tmp_path: Path, crop: str, dataset: str):
 def test_extracts_only_mapped_classes_and_normalizes_names(
     plantvillage: dict[str, Any], tmp_path: Path
 ) -> None:
-    (report, images), processed_base = _run(plantvillage, tmp_path, "tomato", "PlantVillage")
+    (report, _images), processed_base = _run(plantvillage, tmp_path, "tomato", "PlantVillage")
     # Only tomato classes present, with canonical names; Corn ignored (not copied).
     assert report.class_counts == plantvillage["class_counts"]
     assert report.image_count == plantvillage["image_count"]
