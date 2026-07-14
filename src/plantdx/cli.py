@@ -247,7 +247,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     # evaluate: base vs. fine-tuned comparison on the frozen test split (M6)
     p_eval = sub.add_parser(
-        "evaluate", help="Evaluate the fine-tuned tomato model against the base model"
+        "evaluate",
+        help="Evaluate a fine-tuned model against the base model (crop read from --dataset)",
     )
     p_eval.add_argument(
         "--stage",

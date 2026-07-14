@@ -19,6 +19,7 @@ from plantdx.evaluation.classification import (
     extract_disease_id,
 )
 from plantdx.evaluation.clinical import build_clinical_lexicons, score_clinical_correctness
+from plantdx.evaluation.config import resolve_crop
 from plantdx.evaluation.hallucination import build_hallucination_lexicons, score_hallucinations
 from plantdx.evaluation.latency import compute_latency_stats
 from plantdx.evaluation.per_disease import compute_per_disease_table
@@ -33,8 +34,6 @@ from plantdx.evaluation.stats import compare_paired
 from plantdx.evaluation.text_metrics import compute_text_metrics
 from plantdx.evaluation.visualize import plot_confusion_matrix, plot_grouped_comparison
 from plantdx.utils.io import ensure_dir, read_jsonl, write_json
-
-_CROP = "tomato"
 
 # Metrics grouped by comparable scale, so no chart mixes a 0..1 score with an
 # unbounded one on the same axis (CIDEr and BERTScore each get their own chart).
@@ -65,9 +64,10 @@ def run_analysis(
     out = ensure_dir(output_dir)
     written: dict[str, str] = {}
 
-    lexicon = build_lexicon(_CROP)
-    hallucination_lex = build_hallucination_lexicons(_CROP)
-    clinical_lex = build_clinical_lexicons(_CROP)
+    crop = _resolve_analysis_crop(pred_path.parent, dataset_dir)
+    lexicon = build_lexicon(crop)
+    hallucination_lex = build_hallucination_lexicons(crop)
+    clinical_lex = build_clinical_lexicons(crop)
 
     per_model = {
         model: _analyze_one_model(rows, model, lexicon, hallucination_lex, clinical_lex)
@@ -96,8 +96,27 @@ def run_analysis(
     write_json(system_info_path, manifest.to_dict())
     written["system_info"] = str(system_info_path)
 
-    written.update(_write_summary(rows, per_model, manifest.to_dict(), comparisons, out))
+    written.update(_write_summary(rows, per_model, manifest.to_dict(), comparisons, out, crop))
     return written
+
+
+def _resolve_analysis_crop(predictions_dir: Path, dataset_dir: str) -> str:
+    """The crop this analysis run is for.
+
+    Prefers the frozen ``metadata.json`` stage 1 writes next to
+    ``predictions.jsonl`` (the artifact contract this module's own docstring
+    promises to read -- always co-located, present even when ``dataset_dir``
+    itself is not, e.g. ``analyze`` running on a different machine than the
+    dataset lives on). Falls back to the dataset's own manifest for
+    predictions produced before this field existed.
+    """
+    metadata_path = predictions_dir / "metadata.json"
+    if metadata_path.is_file():
+        data = json.loads(metadata_path.read_text(encoding="utf-8"))
+        crop = data.get("crop")
+        if crop:
+            return str(crop)
+    return resolve_crop(dataset_dir)
 
 
 # --------------------------------------------------------------------------- #
@@ -448,6 +467,7 @@ def _write_summary(
     manifest: dict[str, Any],
     comparisons_path: str,
     out: Path,
+    crop: str,
 ) -> dict[str, str]:
     metrics_json = {
         model: {
@@ -473,7 +493,7 @@ def _write_summary(
 
     summary_path = out / "evaluation_summary.md"
     summary_path.write_text(
-        _render_summary_markdown(rows, per_model, comparisons), encoding="utf-8"
+        _render_summary_markdown(rows, per_model, comparisons, crop), encoding="utf-8"
     )
 
     return {
@@ -484,11 +504,14 @@ def _write_summary(
 
 
 def _render_summary_markdown(
-    rows: list[dict[str, Any]], per_model: dict[str, Any], comparisons: list[dict[str, Any]]
+    rows: list[dict[str, Any]],
+    per_model: dict[str, Any],
+    comparisons: list[dict[str, Any]],
+    crop: str,
 ) -> str:
     base_c, ft_c = per_model["base"]["classification"], per_model["finetuned"]["classification"]
     lines = [
-        "# Evaluation Summary: Base vs Fine-tuned (Qwen2.5-VL, tomato)",
+        f"# Evaluation Summary: Base vs Fine-tuned (Qwen2.5-VL, {crop})",
         "",
         f"- Samples evaluated: **{len(rows)}**",
         f"- Base accuracy: **{base_c.accuracy:.3f}** | "

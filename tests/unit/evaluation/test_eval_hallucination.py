@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
-from plantdx.evaluation.hallucination import score_hallucinations
+from plantdx.evaluation.hallucination import build_hallucination_lexicons, score_hallucinations
+
+
+@pytest.fixture
+def mango_hallucination_lex(compiled_vocabulary_dir: Path):
+    return build_hallucination_lexicons(
+        "mango", vocabulary_path=compiled_vocabulary_dir / "vocabulary.json"
+    )
 
 
 @pytest.mark.unit
@@ -44,3 +53,20 @@ class TestHallucinationDetection:
         text = "This tomato leaf shows fruit rot typical of late blight."
         flags = score_hallucinations(text, "tomato_late_blight", hallucination_lex)
         assert flags.impossible_symptom is True
+
+    def test_own_crop_mention_is_not_flagged(self, mango_hallucination_lex) -> None:
+        """Regression test: a mango evaluation must never flag a legitimate
+        mention of "mango" as a hallucinated crop. The old implementation used
+        a single static _OTHER_CROPS list that unconditionally included every
+        known crop name including whichever one was actually being evaluated."""
+        text = "This mango leaf is affected by anthracnose."
+        flags = score_hallucinations(text, "mango_anthracnose", mango_hallucination_lex)
+        assert flags.hallucinated_crop is False
+
+    def test_other_crop_is_flagged_for_mango_evaluation_too(self, mango_hallucination_lex) -> None:
+        """The old static _OTHER_CROPS list never included "tomato" at all
+        (it was only ever used for tomato evaluations), so a mango run would
+        never have caught a tomato-crop hallucination."""
+        text = "This tomato leaf is affected by anthracnose."
+        flags = score_hallucinations(text, "mango_anthracnose", mango_hallucination_lex)
+        assert flags.hallucinated_crop is True

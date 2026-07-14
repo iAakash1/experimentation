@@ -17,6 +17,8 @@ implements it.
 | [VOCABULARY.md](VOCABULARY.md) | The Vocabulary + Symptom Lexicon Compiler (`plantdx vocabulary`): usage, artifacts, validation battery. |
 | [CONCEPTS.md](CONCEPTS.md) | The Caption Concept Model compiler (`plantdx concepts`): usage, artifacts, `V-CON-*` battery. |
 | [CORPUS.md](CORPUS.md) | The language layer (`plantdx templates/generate/validate/corpus`): planner, generator, validators, exporters. |
+| [TRAINING.md](TRAINING.md) | The training pipeline (`plantdx train`/`prepare-training`/`infer`): QLoRA fine-tuning of Qwen2.5-VL for tomato or mango via mlx-vlm. |
+| [EVALUATION.md](EVALUATION.md) | The evaluation pipeline (`plantdx evaluate`): base vs. fine-tuned comparison, crop derived from the dataset manifest. |
 | [ROADMAP.md](ROADMAP.md) | Milestones and their acceptance criteria. |
 | [KNOWN_ISSUES.md](KNOWN_ISSUES.md) | Known, intentionally deferred issues. |
 | [adr/](adr/) | Architecture Decision Records. |

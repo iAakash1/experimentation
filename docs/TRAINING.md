@@ -1,14 +1,15 @@
-# Training Pipeline (Milestone 7) — Tomato QLoRA on Qwen2.5-VL (MLX)
+# Training Pipeline (Milestone 7) — QLoRA on Qwen2.5-VL (MLX)
 
 A config-driven, deterministic workflow that fine-tunes **Qwen2.5-VL-7B-Instruct-4bit**
-on **tomato** leaf captions using **mlx-vlm** on Apple Silicon (M4 Pro, 24 GB). It
+on tomato or mango leaf captions using **mlx-vlm** on Apple Silicon (M4 Pro, 24 GB). It
 builds the image-grounded training set by cross-joining the **frozen** caption corpus
-(the response pool) with the normalized tomato images, then orchestrates mlx-vlm's
+(the response pool) with the normalized images for that crop, then orchestrates mlx-vlm's
 LoRA trainer. It **never** modifies the frozen pipeline (ontology, vocabulary,
 concepts, templates, generator, validator, corpus, exporters) and reads image *paths*
 only — never pixels, never an LLM/VLM in the data path.
 
-> **Scope:** tomato only (10 classes). Mango is ignored entirely. One model:
+> **Scope:** tomato (10 classes) or mango (8 classes), selected by the run config's
+> `data.crop`/`data.classes` (`configs/train/qwen25vl_{tomato,mango}.yaml`). One model:
 > Qwen2.5-VL-7B-Instruct-4bit (already downloaded). LoRA/QLoRA are config-driven;
 > DoRA is accepted in config for forward-compat but the installed backend
 > (mlx-vlm 0.6.x) cannot run it — `train` fails closed with a clear message.
@@ -18,10 +19,11 @@ only — never pixels, never an LLM/VLM in the data path.
 These are the **frozen** upstream stages; the training pipeline consumes their outputs.
 
 ```bash
-# 1) Normalize the raw tomato images into datasets/tomato/processed/<class>/
+# 1) Normalize the raw images into datasets/<crop>/processed/<class>/
 plantdx normalize --dataset tomato
+plantdx normalize --dataset mango
 
-# 2) Build the frozen caption corpus (the response pool) -> artifacts/corpus/
+# 2) Build the frozen caption corpus (the response pool, covers every crop) -> artifacts/corpus/
 plantdx generate
 ```
 
@@ -36,7 +38,8 @@ pip install -e .        # in the env where `python -c "import mlx_vlm"` works
 
 | File | Purpose |
 |---|---|
-| `configs/train/qwen25vl_tomato.yaml` | the run: seed, optimizer, data, checkpoints, logging |
+| `configs/train/qwen25vl_tomato.yaml` | the tomato run: seed, optimizer, data, checkpoints, logging |
+| `configs/train/qwen25vl_mango.yaml` | the mango run — identical LoRA/optimizer/schedule, only crop-specific values (`data.crop`, `data.classes`, `data.image_glob`, `data.instructions_path`, `run_name`) differ |
 | `configs/models/qwen25vl.yaml` | the model: repo id, 4-bit, seq length, assistant id, image resize |
 | `configs/lora/{qlora,lora,dora}.yaml` | the adapter method + rank/alpha/dropout |
 
@@ -56,6 +59,10 @@ plantdx train --config configs/train/qwen25vl_tomato.yaml --dry-run
 
 # Launch training (this is the real run — hours on M4 Pro).
 plantdx train --config configs/train/qwen25vl_tomato.yaml
+
+# Same commands work unchanged for mango — only the config differs.
+plantdx train --config configs/train/qwen25vl_mango.yaml --crop mango --dry-run
+plantdx train --config configs/train/qwen25vl_mango.yaml --crop mango
 
 # Inference with the trained adapter.
 plantdx infer --adapter checkpoints/qwen25vl_tomato_qlora --image leaf.JPG
@@ -77,9 +84,13 @@ consumes:
 
 - **Response** is a caption taken **verbatim** from the frozen corpus for that
   image's disease — nothing is generated here.
-- **Instruction** is drawn from `assets/training/instructions.json` (task prompts
-  only; no disease knowledge, no `<image>` marker — mlx-vlm inserts the image token).
-- **Labels** come from `assets/metadata/label_map.json` (`<class folder> -> disease_id`).
+- **Instruction** is drawn from `assets/training/instructions.json` by default (task
+  prompts only; no disease knowledge, no `<image>` marker — mlx-vlm inserts the image
+  token); the mango config points `data.instructions_path` at
+  `assets/training/instructions_mango.json` (same prompts, "mango leaf" wording)
+  instead of the tomato-worded default.
+- **Labels** come from `assets/metadata/label_map.json` (`<class folder> -> disease_id`,
+  one section per crop — `tomato` and `mango`).
 - **Splits** are image-grouped (no image leaks across splits) and disease-stratified;
   assignment is a pure SHA-256 function of `(split_seed, image_id)`.
 

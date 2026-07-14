@@ -19,7 +19,7 @@ from typing import Any
 
 from plantdx.core.exceptions import PlantDxError
 from plantdx.evaluation.checkpoint import resolve_adapter_dir
-from plantdx.evaluation.config import EvalConfig
+from plantdx.evaluation.config import EvalConfig, resolve_crop
 from plantdx.training import seeds
 from plantdx.training.data.label_map import load_label_map
 from plantdx.training.inference import LoadedModel, load_model
@@ -62,7 +62,8 @@ def run_inference(cfg: EvalConfig) -> Path:
     """
     seeds.apply(cfg.seed)
     rows = _load_split_rows(cfg)
-    label_map = load_label_map("tomato")
+    crop = resolve_crop(cfg.dataset_dir)
+    label_map = load_label_map(crop)
     adapter_dir = resolve_adapter_dir(cfg.adapter_path)
 
     base = load_model(cfg.model_path, adapter_path=None)
@@ -75,7 +76,7 @@ def run_inference(cfg: EvalConfig) -> Path:
     out_path = Path(cfg.predictions_path)
     ensure_dir(out_path.parent)
     write_jsonl(out_path, [asdict(p) for p in predictions])
-    _write_metadata(cfg, out_path, len(predictions))
+    _write_metadata(cfg, out_path, len(predictions), crop)
     return out_path
 
 
@@ -184,11 +185,12 @@ def _mean_token_confidence(logprobs: Any) -> float | None:
         return None
 
 
-def _write_metadata(cfg: EvalConfig, predictions_path: Path, sample_count: int) -> None:
+def _write_metadata(cfg: EvalConfig, predictions_path: Path, sample_count: int, crop: str) -> None:
     write_json(
         predictions_path.parent / "metadata.json",
         {
             "stage": "inference",
+            "crop": crop,
             "model_path": cfg.model_path,
             "adapter_path": cfg.adapter_path,
             "dataset_dir": cfg.dataset_dir,

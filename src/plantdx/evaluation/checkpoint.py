@@ -21,6 +21,24 @@ ADAPTER_CONFIG_NAME = "adapter_config.json"
 ADAPTER_WEIGHTS_NAME = "adapters.safetensors"
 
 
+def _candidate_dir(adapter_path: str | Path) -> Path:
+    """The checkpoint directory implied by ``adapter_path``, no filesystem I/O."""
+    path = Path(adapter_path)
+    return path.parent if path.name == ADAPTER_WEIGHTS_NAME else path
+
+
+def run_name_from_adapter_path(adapter_path: str | Path) -> str:
+    """The run name implied by an adapter path (e.g. ``qwen25vl_mango_qlora``).
+
+    No filesystem I/O -- safe to call before the checkpoint exists, or in an
+    environment (e.g. the ``analyze`` stage) that never touches it at all. Used
+    to default the evaluation report directory to ``reports/<run_name>/``
+    instead of a hardcoded run name, mirroring the training pipeline's own
+    ``checkpoints/<run_name>/`` / ``reports/<run_name>/`` convention.
+    """
+    return _candidate_dir(adapter_path).name
+
+
 def resolve_adapter_dir(adapter_path: str | Path) -> Path:
     """Resolve a configured adapter path to the checkpoint directory mlx-vlm needs.
 
@@ -32,8 +50,7 @@ def resolve_adapter_dir(adapter_path: str | Path) -> Path:
     required file, so a malformed or half-written checkpoint is caught before
     mlx-vlm ever sees it.
     """
-    path = Path(adapter_path)
-    candidate = path.parent if path.name == ADAPTER_WEIGHTS_NAME else path
+    candidate = _candidate_dir(adapter_path)
 
     if not candidate.is_dir():
         raise DerivationError(

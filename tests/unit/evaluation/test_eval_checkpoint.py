@@ -20,6 +20,7 @@ from plantdx.evaluation.checkpoint import (
     ADAPTER_WEIGHTS_NAME,
     adapter_weights_path,
     resolve_adapter_dir,
+    run_name_from_adapter_path,
 )
 
 
@@ -87,6 +88,20 @@ def test_never_hardcodes_a_run_name(tmp_path: Path) -> None:
         (ckpt / ADAPTER_WEIGHTS_NAME).write_bytes(b"x")
         assert resolve_adapter_dir(ckpt) == ckpt
         assert resolve_adapter_dir(ckpt / ADAPTER_WEIGHTS_NAME) == ckpt
+
+
+@pytest.mark.unit
+def test_run_name_from_adapter_path_directory_form() -> None:
+    assert run_name_from_adapter_path("checkpoints/qwen25vl_mango_qlora") == "qwen25vl_mango_qlora"
+
+
+@pytest.mark.unit
+def test_run_name_from_adapter_path_weights_file_form() -> None:
+    """Must resolve the same run name whether --adapter names the checkpoint
+    directory or the adapters.safetensors file inside it, and requires no
+    filesystem I/O (the checkpoint need not exist yet)."""
+    path = "checkpoints/qwen25vl_mango_qlora/" + ADAPTER_WEIGHTS_NAME
+    assert run_name_from_adapter_path(path) == "qwen25vl_mango_qlora"
 
 
 @pytest.mark.unit

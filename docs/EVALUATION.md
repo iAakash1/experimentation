@@ -1,11 +1,29 @@
-# Evaluation Pipeline (Milestone 6) — Base vs. Fine-tuned, Tomato
+# Evaluation Pipeline (Milestone 6) — Base vs. Fine-tuned
 
-Compares the fine-tuned tomato QLoRA adapter against the base
+Compares a fine-tuned QLoRA adapter against the base
 **Qwen2.5-VL-7B-Instruct-4bit** model on the frozen `test.jsonl` split, using
 identical prompts and deterministic (temperature 0, no sampling) decoding for
 both models. Never retrains, never regenerates the dataset, never touches the
 DKB/ontology/vocabulary/concepts/templates/corpus/training pipeline — all of
 that is frozen input to this milestone.
+
+**Crop is never a flag.** It is read from `<dataset_dir>/manifest.json`'s
+`crop` field (the same manifest `plantdx train`/`prepare-training` writes),
+recorded into stage 1's `metadata.json`, and used to build the disease
+lexicon/hallucination/clinical lexicons for stage 2 — so `--adapter
+checkpoints/qwen25vl_mango_qlora --dataset artifacts/training/qwen25vl_mango_qlora/dataset`
+evaluates against mango's own disease IDs and vocabulary automatically, and a
+future crop needs no evaluation-code change at all.
+
+```
+Dataset  ->  Manifest  ->  Crop Resolution  ->  Inference  ->  Analysis  ->  Report
+```
+
+`<dataset_dir>` (the frozen `train/validation/test.jsonl`) carries a
+`manifest.json` recording the crop it was built for; crop resolution reads
+that field; stage 1 (inference) uses it to load the right label map and stage
+2 (analysis) uses it to load the right disease lexicon; the report is written
+to `reports/<run_name>/`.
 
 ## Two-stage architecture (and why)
 
@@ -80,7 +98,11 @@ plantdx evaluate [--stage inference|analyze|all] [--adapter PATH] [--dataset DIR
 
 All flags default to the frozen tomato/Qwen2.5-VL run
 (`configs/train/qwen25vl_tomato.yaml`'s outputs); `plantdx evaluate` with no
-flags evaluates that exact adapter against `test.jsonl`.
+flags evaluates that exact adapter against `test.jsonl`. `--output-dir`
+itself defaults to `reports/<run_name>/evaluation`, where `<run_name>` is
+`--adapter`'s own directory name — passing `--adapter
+checkpoints/qwen25vl_mango_qlora` alone is enough to also route the report
+directory correctly, with no separate `--output-dir` needed.
 
 ## Outputs (`<output_dir>/`)
 

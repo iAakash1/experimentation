@@ -17,8 +17,9 @@
 > symptom lexicon compiler, **Caption Concept Model, Template Engine, caption corpus,
 > and dataset exporters** are implemented (CPU-only, deterministic). The M3 corpus is
 > a *disease-level*, image-independent caption library; image grounding, instruction
-> pairing, per-model VLM converters, QLoRA training, and evaluation are later
-> milestones (typed interfaces only). See the [Roadmap](#roadmap).
+> pairing, and per-model VLM converters are later milestones (typed interfaces only).
+> QLoRA training (`plantdx train`) and evaluation (`plantdx evaluate`) are implemented
+> separately, for Qwen2.5-VL on tomato and mango — see [Roadmap](#roadmap).
 
 ---
 
@@ -196,8 +197,8 @@ plantdx validate          [--condition ID] [--crop C]    # implemented — indep
 plantdx corpus            [--format F | --all]           # implemented — corpus + dataset exporters
 plantdx dataset build     --config configs/config.yaml   # Milestone 4
 plantdx dataset convert   --model qwen3_vl                # Milestone 4
-plantdx train             --model qwen3_vl                # Milestone 5
-plantdx evaluate          --model qwen3_vl                # Milestone 6
+plantdx train             --config configs/train/qwen25vl_tomato.yaml [--crop tomato|mango]  # implemented
+plantdx evaluate          --stage all [--adapter checkpoints/<run>/] [--dataset DIR]          # implemented
 ```
 
 Programmatic surface (implemented stages):

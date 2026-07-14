@@ -82,19 +82,21 @@ reviewable body of work; scope PRs to a single milestone.
   response text and validate their lines; QA acceptance rule + kappa computed;
   converter/split integration tests unskipped.
 
-## M7 — Training pipeline (tomato QLoRA on Qwen2.5-VL, MLX) ✅ (implemented)
-- Config-driven, deterministic fine-tuning **workflow** for **tomato only** on
-  **Qwen2.5-VL-7B-Instruct-4bit** via mlx-vlm (M4 Pro / 24 GB). Cross-joins the
-  frozen corpus (response pool) with normalized tomato images into mlx-vlm JSONL
-  with image-grouped, disease-stratified splits; builds the exact `mlx_vlm.lora`
-  command; pre-flight plan + report; checkpoints/resume; CSV/JSON/Markdown logging;
-  single/folder/batch inference. `configs/{train,models,lora}/`, `training/` +
-  `training/data/`, `assets/{metadata/label_map,training/instructions}.json`.
+## M7 — Training pipeline (QLoRA on Qwen2.5-VL, MLX) ✅ (implemented)
+- Config-driven, deterministic fine-tuning **workflow** for **one model**
+  (**Qwen2.5-VL-7B-Instruct-4bit** via mlx-vlm, M4 Pro / 24 GB) across **tomato and
+  mango** (`configs/train/qwen25vl_{tomato,mango}.yaml`). Cross-joins the frozen
+  corpus (response pool) with the normalized images for the configured crop into
+  mlx-vlm JSONL with image-grouped, disease-stratified splits; builds the exact
+  `mlx_vlm.lora` command; pre-flight plan + report; checkpoints/resume; CSV/JSON/Markdown
+  logging; single/folder/batch inference. `configs/{train,models,lora}/`, `training/` +
+  `training/data/`, `assets/{metadata/label_map,training/instructions{,_mango}}.json`.
 - **Acceptance:** `prepare-training` / `train --dry-run` build the dataset + report
   and print the exact one launch command without training; DoRA fails closed; the
   frozen golden hashes are unchanged. See `docs/TRAINING.md`. Note: this milestone
-  narrows the original M5 (four models) to the single requested tomato+Qwen2.5-VL run;
-  extending to the other three models reuses the same config/command machinery.
+  narrows the original M5 (four models) to the single requested Qwen2.5-VL run,
+  now covering both tomato and mango; extending to the other three models reuses
+  the same config/command machinery.
 
 ## M5 — QLoRA fine-tuning (MLX) — superseded for tomato by M7
 - Implement `QLoRASettings` resolution and `MLXVLMRunner`; fine-tune all four
@@ -103,9 +105,11 @@ reviewable body of work; scope PRs to a single milestone.
 - **Acceptance:** each model trains to completion on M4 Pro / 24 GB; adapters
   produced; runs reproducible from a training config.
 
-## M6 — Evaluation (tomato base vs. fine-tuned) ✅ (implemented)
+## M6 — Evaluation (base vs. fine-tuned) ✅ (implemented)
 - Two-stage (`--stage inference|analyze|all`) base-vs-fine-tuned comparison on
-  the frozen tomato test split: official BLEU/ROUGE/METEOR/CIDEr/BERTScore,
+  the frozen test split of whichever crop's dataset is configured (crop is read
+  from the dataset's own `manifest.json`, never a hardcoded assumption — see
+  `docs/EVALUATION.md`): official BLEU/ROUGE/METEOR/CIDEr/BERTScore,
   full classification metrics + confusion matrices, per-disease breakdown,
   DKB-grounded hallucination + clinical-correctness detection, response
   quality, latency, paired statistical significance (t-test/Wilcoxon/
@@ -117,7 +121,7 @@ reviewable body of work; scope PRs to a single milestone.
   leakage is a hard failure; 119 tests pass with 0 failures (BERTScore tests
   skip cleanly, not silently, where a pre-existing environment conflict
   blocks it — verified 0 skips in a clean environment). See
-  `docs/EVALUATION.md`. Note: this milestone covers the single tomato +
-  Qwen2.5-VL model this project actually trained (M7), not the four-model
-  zero-shot comparison matrix originally scoped here — extending to
-  additional models/mango reuses the same two-stage machinery.
+  `docs/EVALUATION.md`. Note: this milestone covers the single Qwen2.5-VL model
+  this project actually trained (M7), now for both tomato and mango, not the
+  four-model zero-shot comparison matrix originally scoped here — extending to
+  additional models reuses the same two-stage machinery.

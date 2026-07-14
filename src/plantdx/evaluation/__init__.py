@@ -1,7 +1,8 @@
 """Evaluation package (Milestone 6): base vs. fine-tuned comparison.
 
-Compares the fine-tuned tomato model against the base model on the frozen test
-split. Public surface:
+Compares a fine-tuned model against the base model on the frozen test split of
+whichever crop's dataset is configured (crop is read from the dataset's own
+manifest, never hardcoded here). Public surface:
 - ``EvalConfig`` / ``resolve_eval_config`` -- resolved, validated run settings.
 - ``run_evaluation`` -- the CLI's stage dispatcher (inference | analyze | all).
 - ``run_inference`` -- stage 1 (lazy mlx-vlm; writes predictions.jsonl).
@@ -14,7 +15,7 @@ The M6-era ``ComparisonReporter`` / ``ZeroShotEvaluator`` / stub
 superseded by the modules above (same "new impl supersedes old stub" pattern
 as ``concepts/`` vs ``ontology/{builder,models}``) -- they described a
 four-model zero-shot comparison matrix, a broader scope than this milestone's
-single tomato model.
+single base-vs-fine-tuned model pair.
 """
 
 from __future__ import annotations

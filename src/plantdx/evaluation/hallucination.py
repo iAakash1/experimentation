@@ -22,26 +22,6 @@ from plantdx.evaluation.classification import DiseaseLexicon, build_lexicon
 _DEFAULT_DKB = Path("knowledge_base/dkb.json")
 _DEFAULT_VOCAB = Path("artifacts/vocabulary/vocabulary.json")
 
-# Other PlantVillage / MangoLeafBD crop names -- if a tomato prediction mentions
-# one of these, it is hallucinating a different crop.
-_OTHER_CROPS = (
-    "mango",
-    "potato",
-    "corn",
-    "maize",
-    "grape",
-    "apple",
-    "pepper",
-    "strawberry",
-    "blueberry",
-    "cherry",
-    "peach",
-    "orange",
-    "raspberry",
-    "soybean",
-    "squash",
-)
-
 # The training corpus never emits management/treatment language (`management`
 # is an always-forbidden concept, see concepts/policies.py); any occurrence is
 # a hallucination relative to what the frozen corpus could have taught the model.
@@ -93,6 +73,7 @@ class HallucinationLexicons:
     disease_lexicon: DiseaseLexicon
     agent_by_disease: dict[str, tuple[str, ...]]
     forbidden_symptoms_by_disease: dict[str, tuple[str, ...]]
+    other_crops: frozenset[str]
 
 
 def build_hallucination_lexicons(
@@ -109,7 +90,21 @@ def build_hallucination_lexicons(
         disease_lexicon=disease_lexicon,
         agent_by_disease=agent_by_disease,
         forbidden_symptoms_by_disease=forbidden,
+        other_crops=_other_crops(dkb_path, crop),
     )
+
+
+def _other_crops(dkb_path: str | Path, crop: str) -> frozenset[str]:
+    """Every crop name in the DKB except ``crop`` itself.
+
+    Derived from the DKB rather than a hardcoded list, so a prediction that
+    mentions a crop it shouldn't (e.g. "mango" in a tomato evaluation) is
+    always flagged, and a legitimate mention of the crop being evaluated is
+    never flagged -- for any crop the DKB is later extended with, not just
+    tomato and mango.
+    """
+    data = json.loads(Path(dkb_path).read_text(encoding="utf-8"))
+    return frozenset(str(entry["crop"]) for entry in data["diseases"] if entry["crop"] != crop)
 
 
 def score_hallucinations(
@@ -121,7 +116,7 @@ def score_hallucinations(
     other_disease = _mentions_other_disease(lowered, ground_truth_disease_id, lexicons)
     pathogen = _mentions_wrong_pathogen(lowered, ground_truth_disease_id, lexicons)
     treatment = any(term in lowered for term in _TREATMENT_TERMS)
-    crop = any(name in lowered for name in _OTHER_CROPS)
+    crop = any(name in lowered for name in lexicons.other_crops)
     impossible = _mentions_forbidden_symptom(lowered, ground_truth_disease_id, lexicons)
 
     return HallucinationFlags(

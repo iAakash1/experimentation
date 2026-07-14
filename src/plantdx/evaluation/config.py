@@ -8,10 +8,12 @@ every resolved value is recorded into the reproducibility manifest anyway).
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
 from plantdx.core.exceptions import ConfigError
+from plantdx.evaluation.checkpoint import run_name_from_adapter_path
 
 _STAGES = frozenset({"inference", "analyze", "all"})
 _SPLITS = frozenset({"train", "validation", "test"})
@@ -21,9 +23,14 @@ _DEFAULT_MODEL_PATH = "mlx-community/Qwen2.5-VL-7B-Instruct-4bit"
 # The checkpoint DIRECTORY (mlx-vlm's apply_lora_layers expects a directory
 # containing adapter_config.json + adapters.safetensors side by side, not the
 # weights file alone) -- see evaluation/checkpoint.py.
+#
+# These two are the only genuinely hardcoded defaults left: `plantdx evaluate`
+# with no flags at all must still resolve to *some* run, and the frozen tomato
+# run is that documented default. Everything downstream (output dir, crop,
+# ontology/vocabulary/lexicon) is derived from whichever adapter/dataset is
+# actually configured -- never re-hardcoded per crop.
 _DEFAULT_ADAPTER = "checkpoints/qwen25vl_tomato_qlora"
 _DEFAULT_DATASET_DIR = "artifacts/training/qwen25vl_tomato_qlora/dataset"
-_DEFAULT_OUTPUT_DIR = "reports/qwen25vl_tomato_qlora/evaluation"
 
 
 @dataclass(frozen=True)
@@ -76,11 +83,12 @@ def resolve_eval_config(
     if errors:
         raise ConfigError("evaluation config invalid:\n  " + "\n  ".join(errors))
 
-    out_dir = output_dir or _DEFAULT_OUTPUT_DIR
+    resolved_adapter = adapter or _DEFAULT_ADAPTER
+    out_dir = output_dir or f"reports/{run_name_from_adapter_path(resolved_adapter)}/evaluation"
     return EvalConfig(
         stage=stage,
         model_path=model or _DEFAULT_MODEL_PATH,
-        adapter_path=adapter or _DEFAULT_ADAPTER,
+        adapter_path=resolved_adapter,
         dataset_dir=dataset or _DEFAULT_DATASET_DIR,
         split=split,
         output_dir=out_dir,
@@ -90,3 +98,27 @@ def resolve_eval_config(
         device=device,
         predictions_path=predictions_path or str(Path(out_dir) / "raw" / "predictions.jsonl"),
     )
+
+
+def resolve_crop(dataset_dir: str | Path) -> str:
+    """The crop ``dataset_dir`` was built for, read from its frozen manifest.
+
+    The training data pipeline (``plantdx train`` / ``prepare-training``)
+    always writes ``crop`` into ``<dataset_dir>/manifest.json`` (see
+    ``training/data/builder.py::_write_manifest``) -- this is the single
+    source of truth for which crop's ontology/vocabulary/lexicon an evaluation
+    run must use. Never guessed, never hardcoded, never a separate flag that
+    could silently drift from the dataset actually being evaluated.
+    """
+    manifest_path = Path(dataset_dir) / "manifest.json"
+    if not manifest_path.is_file():
+        raise ConfigError(
+            f"dataset manifest not found: {manifest_path}. The training data "
+            f"pipeline (`plantdx train` / `plantdx prepare-training`) must be run "
+            f"first; evaluation reads the crop from its manifest, never guesses it."
+        )
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    crop = data.get("crop")
+    if not crop:
+        raise ConfigError(f"dataset manifest at {manifest_path} has no 'crop' field")
+    return str(crop)

@@ -6,6 +6,39 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added — Mango training config + crop-agnostic evaluation
+M6 (evaluation) and M7 (training), both below, originally shipped tomato-only.
+This extends them to mango without changing either milestone's architecture.
+- **`configs/train/qwen25vl_mango.yaml`**: the mango run config — identical
+  LoRA/QLoRA, optimizer, schedule, and checkpoint/logging cadence to the tomato
+  config; only crop-specific values differ (`data.crop`, `data.classes`,
+  `data.image_glob`, `data.instructions_path`, `run_name`; output directories
+  auto-derive from `run_name`). `assets/training/instructions_mango.json` (mango-
+  worded instruction paraphrases) and a `mango` section in
+  `assets/metadata/label_map.json` were added alongside the existing tomato ones.
+- **Crop-agnostic evaluation** (`evaluation/config.py`, `evaluation/
+  inference_runner.py`, `evaluation/report.py`, `evaluation/hallucination.py`):
+  crop is now read from `<dataset_dir>/manifest.json` (the same manifest
+  `plantdx train`/`prepare-training` writes) instead of a hardcoded tomato
+  default — no `--crop` flag needed. Stage 1 records the resolved crop into
+  `metadata.json`; stage 2 reads it back to build the correct disease/
+  hallucination/clinical lexicons, falling back to the dataset manifest for
+  predictions produced before this change. `--output-dir` now defaults to
+  `reports/<run_name>/evaluation`, derived from `--adapter`'s own directory
+  name, instead of a hardcoded `reports/qwen25vl_tomato_qlora/evaluation`.
+  Hallucinated-crop detection now derives "other crops" from the DKB's own
+  crop set minus the crop being evaluated, instead of a static crop-name list.
+- Verified against the real, previously-mislabeled mango run: predictions now
+  carry correct `mango_*` disease IDs (not `unknown:*` or a tomato ID from a
+  folder-name collision), and evaluating a mango dataset no longer produces
+  tomato disease IDs anywhere in the output. Tomato evaluation re-verified
+  unaffected.
+- New regression tests targeting each reported symptom directly: output-dir
+  derivation from the adapter path, fail-closed crop resolution, mango
+  disease-ID extraction, and per-crop hallucinated-crop true/false positives.
+- `ruff check .`, `ruff format --check .`, `mypy src`, and `pytest` (495
+  passed, 47 skipped, 0 failed) all green.
+
 ### Added — M6: Evaluation pipeline (base vs. fine-tuned, tomato)
 A two-stage, deterministic evaluation comparing the fine-tuned tomato QLoRA
 adapter against the base Qwen2.5-VL-7B-Instruct-4bit model on the frozen

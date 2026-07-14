@@ -39,18 +39,24 @@ Caption Concept Model ──► Template Engine ──► Sentence Planner ─�
 Caption Validator ──► Corpus Builder ──► caption corpus ──► Dataset Exporters
         │
         ▼
-[ next: image grounding + instruction pairing → per-model VLM converters →
-  QLoRA Fine-tuning → Evaluation ]
+QLoRA Fine-tuning (Qwen2.5-VL, tomato or mango) ──► Evaluation (base vs. fine-tuned)
+        │
+        ▼
+[ next: image grounding + instruction pairing → per-model VLM converters
+  (Qwen3-VL/InternVL3/Gemma-3) — the four-model comparison this narrows from ]
 
 Raw datasets ──► Dataset Audit Engine ──► Dataset Normalization Engine
                                             ──► canonical datasets/<crop>/processed/
 ```
 
-Eight independent, CPU-only pipeline stages are implemented today; everything
-from image grounding onward is still a typed interface stub
-(`raise NotImplementedError`), by design — see [Current Status](#current-status).
-The M3 caption corpus is **disease-level and image-independent** — a pure function
-of the ontology, vocabulary, lexicon, and templates.
+Eight independent, CPU-only pipeline stages are implemented today, plus a
+QLoRA training workflow (`plantdx train`) and evaluation pipeline
+(`plantdx evaluate`) for Qwen2.5-VL on tomato and mango; image grounding,
+instruction pairing, and the multi-model VLM converters remain a typed
+interface stub (`raise NotImplementedError`), by design — see
+[Current Status](#current-status). The M3 caption corpus is **disease-level
+and image-independent** — a pure function of the ontology, vocabulary,
+lexicon, and templates.
 
 ## Implemented today
 
@@ -63,20 +69,27 @@ of the ontology, vocabulary, lexicon, and templates.
 | **Caption Concept Model** | `plantdx concepts` | Derives, per disease, the mandatory/optional/forbidden concept sets, ordering, information budget, register policy, and per-concept controlled realizations + evidence. Fail-closed `V-CON-*` validation; deterministic, content-hashed. |
 | **Template Engine** | `plantdx templates` | Loads, validates, and indexes the authored caption templates (syntax only; slots name concepts). Fail-closed `V-TPL-*` validation. |
 | **Caption corpus** | `plantdx generate` / `validate` / `corpus` | Deterministically plans → generates → independently validates (`V-CAP-*`) → assembles a per-disease, image-free caption corpus, and reshapes it into `generic`/`llava`/`paligemma`/`blip2`/`messages` export formats. |
+| **Training (M7)** | `plantdx train` / `prepare-training` / `infer` | Config-driven QLoRA fine-tuning of Qwen2.5-VL-7B-Instruct-4bit via mlx-vlm, for tomato or mango (`configs/train/qwen25vl_{tomato,mango}.yaml`). Cross-joins the frozen caption corpus with the crop's normalized images directly (paths + folder labels only) — a narrower path than the still-stubbed image-grounded Instruction Dataset Builder below. |
+| **Evaluation (M6)** | `plantdx evaluate` | Two-stage base-vs-fine-tuned comparison on the frozen test split. Crop is read from the dataset's own `manifest.json`, never hardcoded — see `docs/EVALUATION.md`. |
 
-All eight are CPU-only, fully deterministic (byte-identical output from the
-same inputs), and covered by CI (`ruff check`, `ruff format --check`,
+The first eight are CPU-only, fully deterministic (byte-identical output from
+the same inputs); training and evaluation additionally require mlx-vlm
+(Apple Silicon) and, for evaluation's metrics stack, a separate `[eval]`
+environment. All are covered by CI (`ruff check`, `ruff format --check`,
 `pytest`, `mypy` — all green).
 
 ## Not yet implemented
 
-Everything downstream of the caption corpus: **image grounding** (cross-joining
-captions with the normalized image datasets), instruction pairing, image-based
-splits, the image-grounded per-model VLM converters (Qwen2.5-VL/Qwen3-VL/
-InternVL3/Gemma-3/MLX, `CONVERTER_REGISTRY`), QLoRA training, and evaluation.
+The originally-planned **image-grounded** path: cross-joining captions with the
+normalized image datasets through a formal Instruction Dataset Builder,
+instruction pairing, image-based splits, and the per-model VLM converters for
+the other three target models (Qwen3-VL/InternVL3/Gemma-3, `CONVERTER_REGISTRY`).
 These exist today only as typed package interfaces with `NotImplementedError`
-bodies — the public API shape is fixed, the logic is not written. **Image
-grounding + the Instruction Dataset Builder is next.**
+bodies — the public API shape is fixed, the logic is not written. QLoRA
+training and evaluation were built directly (see above), reading image paths
+and folder labels straight from the normalized datasets rather than going
+through this still-stubbed path. **Image grounding + the Instruction Dataset
+Builder is next.**
 
 ## Repository layout
 
@@ -156,6 +169,10 @@ plantdx vocabulary                 # derive the vocabulary + symptom lexicon fro
 plantdx concepts                   # derive the per-disease Caption Concept Model
 plantdx corpus                     # build the caption corpus + dataset exporters
 ```
+
+Training (`plantdx train`, Apple Silicon + `[train]` extra) and evaluation
+(`plantdx evaluate`, a separate `[eval]` extra) each need their own environment
+— see `docs/TRAINING.md` and `docs/EVALUATION.md`.
 
 See `docs/AUDIT.md`, `docs/NORMALIZATION.md`, `docs/ONTOLOGY.md`,
 `docs/VOCABULARY.md`, `docs/CONCEPTS.md`, and `docs/CORPUS.md` for full usage of
