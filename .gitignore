@@ -34,6 +34,11 @@ reports/
 # Anchored to the repo root so it does not match artifacts/datasets/.
 /datasets/
 
+# --- Demo app (Streamlit) runtime data: user uploads + prediction records ---
+# The original uploaded images and per-run prediction JSON are local-only.
+/uploads/
+/predictions/
+
 # --- Python ---
 __pycache__/
 *.py[cod]
