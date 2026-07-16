@@ -6,6 +6,25 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added — Streamlit demo app (`app/`, `streamlit_app.py`)
+A presentation-only inference app over the trained tomato/mango QLoRA adapters,
+reusing `plantdx.training.inference` / `plantdx.evaluation` unchanged (no
+training/evaluation/CI/test behavior modified). Upload leaf images → grounded
+diagnosis with a **real** generation confidence (mean probability of the model's
+own emitted tokens via `stream_generate`, replacing the degenerate last-token
+logprob), a configurable confidence threshold with low-confidence/unknown
+handling for out-of-distribution images, robust crop-scoped disease
+classification (wraps the frozen extractor with normalized/alias fallbacks),
+adapter verification (LoRA rank/params/attachment), and the crop's held-out
+evaluation results — all in three tabs. Uploads are filed immutably under
+`uploads/<crop>/<predicted_class|unknown>/` with a JSON sidecar; every run is
+recorded to `predictions/` and `logs/predictions.jsonl`. Model loads once via
+`st.cache_resource` (one crop resident at a time); MLX buffer cache is bounded
+and cleared per run (memory stays flat). Uses the current `width="stretch"`
+Streamlit API (no deprecation warnings). Tests under `tests/unit/app/` (45,
+Streamlit-guarded where needed). Docs: `docs/DEMO_APP.md`; README overhauled as
+the public entry point with real evaluation results + figures.
+
 ### Added — Mango training config + crop-agnostic evaluation
 M6 (evaluation) and M7 (training), both below, originally shipped tomato-only.
 This extends them to mango without changing either milestone's architecture.

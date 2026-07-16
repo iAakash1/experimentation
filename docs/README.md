@@ -19,6 +19,7 @@ implements it.
 | [CORPUS.md](CORPUS.md) | The language layer (`plantdx templates/generate/validate/corpus`): planner, generator, validators, exporters. |
 | [TRAINING.md](TRAINING.md) | The training pipeline (`plantdx train`/`prepare-training`/`infer`): QLoRA fine-tuning of Qwen2.5-VL for tomato or mango via mlx-vlm. |
 | [EVALUATION.md](EVALUATION.md) | The evaluation pipeline (`plantdx evaluate`): base vs. fine-tuned comparison, crop derived from the dataset manifest. |
+| [DEMO_APP.md](DEMO_APP.md) | The Streamlit inference/demo app (`app/`, `streamlit_app.py`): launch, features, confidence/unknown handling, adapter verification. |
 | [ROADMAP.md](ROADMAP.md) | Milestones and their acceptance criteria. |
 | [KNOWN_ISSUES.md](KNOWN_ISSUES.md) | Known, intentionally deferred issues. |
 | [adr/](adr/) | Architecture Decision Records. |

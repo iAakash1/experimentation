@@ -2,251 +2,237 @@
 
 # 🌿 PlantDx
 
-**A knowledge-grounded framework for constructing instruction-tuning datasets for agricultural Vision–Language Models.**
+**A knowledge-grounded framework for building instruction-tuning datasets and fine-tuning agricultural Vision–Language Models — end to end, and reproducibly.**
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![Code style: ruff](https://img.shields.io/badge/lint-ruff-black.svg)](.pre-commit-config.yaml)
-[![Types: mypy](https://img.shields.io/badge/types-mypy-blue.svg)](pyproject.toml)
-[![Status: M3](https://img.shields.io/badge/status-milestone--3-orange.svg)](docs/ROADMAP.md)
+[![CI](https://github.com/iAakash1/experimentation/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
+[![Lint: ruff](https://img.shields.io/badge/lint-ruff-black.svg)](pyproject.toml)
+[![Types: mypy](https://img.shields.io/badge/types-mypy_strict-blue.svg)](pyproject.toml)
+
+Deterministic caption dataset → QLoRA fine-tuning (MLX) → evaluation → interactive demo, for **tomato** and **mango** leaf disease.
 
 </div>
 
-> **Repository status — Milestone 3.**
-> The dataset audit, dataset normalization, domain ontology compiler, vocabulary +
-> symptom lexicon compiler, **Caption Concept Model, Template Engine, caption corpus,
-> and dataset exporters** are implemented (CPU-only, deterministic). The M3 corpus is
-> a *disease-level*, image-independent caption library; image grounding, instruction
-> pairing, and per-model VLM converters are later milestones (typed interfaces only).
-> QLoRA training (`plantdx train`) and evaluation (`plantdx evaluate`) are implemented
-> separately, for Qwen2.5-VL on tomato and mango — see [Roadmap](#roadmap).
-
 ---
 
-## Project Overview
+## Overview
 
-PlantDx builds **scientifically grounded** instruction-tuning datasets for fine-tuning open-weight Vision–Language Models (VLMs) to describe and identify diseases in **tomato** and **mango** leaves. Every caption is generated from a curated, cited **Disease Knowledge Base (DKB)** and a controlled vocabulary — **never** from a VLM/LLM prediction and **never** from image analysis. The dataset labels (PlantVillage, MangoLeafBD) are the only ground truth used.
+General-purpose open-weight VLMs are unreliable at zero-shot crop-disease diagnosis
+(measured on the base model here: **7.3%** accuracy on tomato, **17.5%** on mango).
+Distilling captions *from* such models would bake their errors into the students.
 
-The framework is a reproducible pipeline:
+**PlantDx removes models from the caption path entirely.** A curated, cited
+**Disease Knowledge Base (DKB)** is compiled — deterministically — into a typed
+ontology, a controlled vocabulary, per-disease concept models, and finally a
+diverse instruction-tuning caption corpus. That corpus supervises **QLoRA**
+fine-tuning of **Qwen2.5-VL-7B** on Apple Silicon (MLX), and a two-stage
+evaluation compares the fine-tuned adapters against the base model on a frozen,
+image-grouped test split.
 
-```
-Disease Knowledge Base  →  Caption Ontology  →  Caption Generation Engine
-        →  Validation Engine  →  Instruction Dataset Builder
-        →  QLoRA Fine-tuning  →  Evaluation
-```
+Every caption is traceable, by construction, to a cited source; nothing on the
+generation path calls an LLM/VLM or reads image pixels; and the whole dataset
+rebuilds byte-for-byte from `(DKB, ontology, seed)` — a property no
+LLM/VLM-generated corpus can offer.
 
-The complete research design lives in [`caption_framework/`](caption_framework/) (Stage 2 specification) and [`knowledge_base/`](knowledge_base/) (Stage 1, the DKB). **These specifications are the source of truth**; this repository implements them exactly.
+## Features
 
-## Research Motivation
+- **Deterministic, cited caption pipeline** — DKB → ontology → vocabulary →
+  concept models → templates → validated corpus, each stage a pure, content-hashed function.
+- **Fail-closed validation** at every stage (`V-ONT-*`, `V-VOC-*`, `V-CON-*`, `V-TPL-*`, `V-CAP-*`).
+- **QLoRA fine-tuning** of Qwen2.5-VL-7B-Instruct-4bit via `mlx-vlm` (Apple M-series), config-driven per crop.
+- **Two-stage evaluation** (`inference` | `analyze`) with official reference metrics
+  (BLEU / ROUGE-L / METEOR / CIDEr / BERTScore) + full classification metrics, DKB-grounded
+  hallucination & clinical-correctness checks, and publication-quality figures.
+- **Crop-agnostic** — crop is read from the dataset manifest, never hardcoded; adding a crop needs no code change.
+- **Interactive Streamlit demo** — upload a leaf, get a grounded diagnosis with a real
+  confidence, adapter verification, and the held-out evaluation results in-app.
+- **Reproducible & typed** — `ruff`, `mypy --strict`, `pytest`; golden content-hash
+  regression tests; deterministic seed fan-out.
 
-General-purpose open-weight VLMs are unreliable at zero-shot crop-disease diagnosis (confirmed by our own benchmark). Distilling captions from such models would encode their errors into the fine-tuned students — a circular failure mode. PlantDx removes models from the caption path entirely:
+## Results
 
-- **Knowledge-grounded** — every claim traces to an authoritative source (APS, UC IPM, UF/IFAS, CABI, peer-reviewed literature) recorded in the DKB.
-- **Hallucination-resistant by construction** — a closed vocabulary plus a 12-stage validator make out-of-knowledge claims structurally impossible.
-- **Observability-honest** — captions describe only what is visible in a single-leaf image; fruit/twig/whole-tree/yield features are documented but forbidden in captions.
-- **Reproducible** — fully seeded, provenance-tracked, bit-for-bit regenerable.
+Fine-tuned QLoRA adapters vs. the base Qwen2.5-VL-7B on each crop's **frozen,
+held-out test split** (PlantVillage-style single-leaf images; image-grouped so no
+leaf leaks between train and test). Numbers are read directly from the generated
+`reports/<run>/evaluation/metrics.json` — not hand-entered.
 
-Full argument: [`caption_framework/07_ieee_methodology_section.md`](caption_framework/07_ieee_methodology_section.md).
+| Crop | Split | Metric | Base | Fine-tuned |
+|------|-------|--------|-----:|-----------:|
+| **Tomato** | 910 img | Accuracy | 7.3% | **93.7%** |
+| | | Macro-F1 | 0.034 | **0.919** |
+| | | BLEU-4 / ROUGE-L / METEOR | 0.003 / 0.093 / 0.149 | **0.192 / 0.428 / 0.431** |
+| | | CIDEr / BERTScore-F1 | 0.000 / 0.843 | **0.956 / 0.907** |
+| **Mango** | 200 img | Accuracy | 17.5% | **82.0%** |
+| | | Macro-F1 | 0.128 | **0.811** |
+| | | BLEU-4 / ROUGE-L / METEOR | 0.004 / 0.098 / 0.160 | **0.190 / 0.423 / 0.454** |
+| | | CIDEr / BERTScore-F1 | 0.000 / 0.843 | **0.946 / 0.907** |
 
-## Architecture Diagram
+<div align="center">
 
-> This diagram shows the caption-generation pipeline (`caption_framework/`, still future work).
-> It is preceded in practice by four already-implemented, independent CPU-only stages —
-> `plantdx audit` → `plantdx normalize` → `plantdx ontology` (the **domain** ontology compiler,
-> `ontology_design/`) → `plantdx vocabulary` (the vocabulary + symptom lexicon compiler, a
-> deterministic projection of that graph) — which inventory the raw datasets, produce the
-> canonical normalized datasets, compile the DKB into a typed knowledge graph, and derive a
-> controlled vocabulary + bounded symptom lexicon from it. The "Ontology Builder (A)" below is
-> the *caption-concept* model, a separate, not-yet-implemented downstream view over that graph;
-> "Vocabulary Builder (B)" and "Symptom Lexicon (C)" below are already implemented against the
-> domain ontology directly (`plantdx.vocabulary.domain`), per `ontology_design/01_architecture.md`
-> §1.5's "re-founded, not redesigned" principle.
+| Tomato — confusion matrix (fine-tuned) | Tomato — accuracy vs. base |
+|:--:|:--:|
+| ![Tomato confusion matrix](docs/images/tomato_confusion_matrix.png) | ![Tomato accuracy](docs/images/tomato_accuracy_comparison.png) |
 
-```
-                ┌──────────────────────────────────────────────┐
-                │  Disease Knowledge Base (Stage 1, FINAL)      │
-                │  knowledge_base/dkb.json  (single source of   │
-                │  truth: 18 classes × 46 fields, cited)        │
-                └───────────────────────┬──────────────────────┘
-                     build-time, deterministic derivation
-        ┌───────────────────────────────┼───────────────────────────────┐
-        ▼                               ▼                               ▼
- ┌───────────────┐             ┌───────────────┐             ┌───────────────┐
- │ Ontology      │             │ Vocabulary    │             │ Symptom       │
- │ Builder (A)   │             │ Builder (B)   │             │ Lexicon (C)   │
- └───────┬───────┘             └───────┬───────┘             └───────┬───────┘
-         └─────────────────────────────┼─────────────────────────────┘
-                                       ▼
-   label (folder GT) ─►  Concept Selector (D) ─► Template Library (E)
-                                       ▼
-                         Slot Realizer + Vocabulary Expander (F)
-                                       ▼
-                         Validator Battery (G, 12 stages) ──fail──► regenerate
-                                       ▼ pass
-                         De-duplicator + Diversity Controller (H)
-                                       ▼
-                         Emitter (I) ─► caption_library.jsonl
-                                       ▼
-             per-model Converters ─► QLoRA (MLX) ─► Evaluation
-```
+| Tomato — per-disease F1 | Mango — confusion matrix (fine-tuned) |
+|:--:|:--:|
+| ![Tomato per-disease F1](docs/images/tomato_per_disease_f1.png) | ![Mango confusion matrix](docs/images/mango_confusion_matrix.png) |
 
-## Pipeline Diagram
+</div>
 
-```
- stage          module (src/plantdx/…)         input → output
- ───────────────────────────────────────────────────────────────────────
- knowledge base knowledge_base/                dkb.json (read-only)
- ontology       ontology/builder.py            dkb.json → caption_ontology.json
- vocabulary     vocabulary/builder.py,lexicon  dkb.json → vocab axes + lexicons
- generation     generation/engine.py           label + ontology → caption drafts
- validation     validation/battery.py          draft → accept | regenerate
- diversity      diversity/controller.py         accepted → dedup + balanced corpus
- dataset        dataset/emitter.py,splits.py    corpus → caption_library.jsonl + splits
- converters     dataset/converters.py           canonical → per-model train files
- training       training/qlora.py,mlx_runner    train files → QLoRA adapters (MLX)
- evaluation     evaluation/*                    adapters → zero-shot vs fine-tuned report
-```
+> These are **in-distribution** scores. Casual field/phone photos differ from the
+> PlantVillage training data and score lower; the demo surfaces that honestly with
+> low-confidence / unknown states rather than asserting a confident wrong answer.
+> Full metrics, per-disease tables, statistical significance, and all figures live
+> under `reports/<run>/evaluation/` after you run `plantdx evaluate`.
 
-## Repository Layout
+## Architecture
 
 ```
-experiments/                      # repository root
-├── src/plantdx/                  # the Python package
-│   ├── config/                   #   typed config schema + YAML loader                    [implemented]
-│   ├── core/                     #   shared types, enums, seeding, exceptions             [implemented]
-│   ├── audit/                    #   Dataset Audit Engine (`plantdx audit`)                [implemented]
-│   ├── normalization/            #   Dataset Normalization Engine (`plantdx normalize`)    [implemented]
-│   ├── knowledge_base/           #   DKB loader + record models (Stage 1 consumer)         [stub]
-│   ├── ontology/                 #   caption-concept model (OntologyBuilder, component A)  [stub]
-│   │   └── domain/               #   Domain Ontology Compiler (`plantdx ontology`)         [implemented]
-│   ├── vocabulary/               #   VocabularyExpander (F, caption-concept view)          [stub]
-│   │   └── domain/               #   Vocabulary + Symptom Lexicon Compiler (`plantdx vocabulary`) [implemented]
-│   ├── concepts/                 #   Caption Concept Model (`plantdx concepts`, component A) [implemented]
-│   ├── templates/                #   Template Engine (`plantdx templates`, component E)    [implemented]
-│   ├── corpus/                   #   Planner + Generator + Validator + Corpus Builder (`plantdx generate`) [implemented]
-│   ├── exporters/                #   Dataset Exporters (`plantdx corpus --format`)         [implemented]
-│   ├── generation/                #   image-grounded ConceptSelector/Realizer/Engine (M4)  [stub]
-│   ├── validation/               #   image-grounded 12-stage ValidatorBattery (M4)         [stub]
-│   ├── diversity/                #   Deduplicator + DiversityController (H) + metrics      [stub]
-│   ├── dataset/                  #   Emitter (I), splits, per-model VLM converters (M4)     [stub]
-│   ├── qa/                       #   sampling, review, acceptance                          [stub]
-│   ├── training/                 #   QLoRA / mlx-vlm runners                               [stub]
-│   ├── evaluation/               #   zero-shot vs fine-tuned metrics                       [stub]
-│   └── utils/                    #   io, hashing, logging, versioning                      [implemented]
-├── configs/                      # config.yaml, paths.yaml, audit/normalization/generation/validation/training.yaml
-├── assets/                       # AUTHORED inputs (templates, static vocab, label_map, overrides)
-├── artifacts/                    # GENERATED outputs (gitignored) — includes artifacts/ontology/, artifacts/vocabulary/
-├── datasets/                     # GENERATED, normalized canonical datasets (gitignored)
-├── tests/                        # unit / integration / benchmark
-├── docs/                         # developer documentation (AUDIT.md, NORMALIZATION.md, ONTOLOGY.md, ...)
-├── scripts/                      # thin CLI wrappers
-├── knowledge_base/                # Stage 1 — the DKB (FINAL)
-├── caption_framework/             # Stage 2 — the caption framework design specification (FINAL)
-├── ontology_design/               # Stage 3 — the domain ontology design specification (FINAL)
-├── tomato/raw/PlantVillage/      # raw dataset, immutable (existing)
-└── mango/raw/MangoLeafBD/        # raw dataset, immutable (existing)
+Disease Knowledge Base (FINAL, cited)                 raw datasets (immutable)
+        │                                             tomato/ · mango/
+        ▼                                                     │
+ Domain Ontology Compiler  ──►  typed knowledge graph         ▼
+        │                       (content-hashed)      Audit ─► Normalization
+        ▼                                                     │  datasets/<crop>/processed/
+ Vocabulary + Symptom Lexicon Compiler                        │
+        │                                                     │
+        ▼                                                     │
+ Concept Models ─► Template Engine ─► Planner ─► Generator ─► Validator ─► Corpus
+        │                                                                    │
+        │                       (image paths + folder labels only)          ▼
+        └──────────────►  Training data builder  ◄───────── frozen caption corpus
+                                    │  (image × caption → mlx-vlm JSONL)
+                                    ▼
+                         QLoRA fine-tune (Qwen2.5-VL, MLX)  ─►  Evaluation  ─►  Streamlit demo
 ```
 
-> The `artifacts/` tree mirrors the **final** artifact layout in [`caption_framework/06_folder_structure_spec.md`](caption_framework/06_folder_structure_spec.md); `configs/paths.yaml` is the single mapping layer. See [`docs/REPO_LAYOUT.md`](docs/REPO_LAYOUT.md) for the spec↔repo correspondence.
+Each stage is a CLI subcommand (`plantdx <stage>`), deterministic, and independently
+tested. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Supported crops
+
+| Crop | Classes | Raw dataset | Adapter |
+|------|--------:|-------------|---------|
+| 🍅 Tomato | 10 | PlantVillage (tomato subset) | `checkpoints/qwen25vl_tomato_qlora` |
+| 🥭 Mango | 8 | MangoLeafBD | `checkpoints/qwen25vl_mango_qlora` |
+
+Adding a crop is additive: author a DKB entry + a `configs/train/qwen25vl_<crop>.yaml`,
+then run the same pipeline — no code change (crop is derived from the dataset manifest).
+
+## Repository structure
+
+```
+src/plantdx/            the Python package (audit, normalization, ontology, vocabulary,
+                        concepts, templates, corpus, exporters, training, evaluation)
+app/                    the Streamlit demo (presentation layer over the trained adapters)
+streamlit_app.py        demo entry point
+knowledge_base/         Stage 1 — the Disease Knowledge Base (FINAL, cited)
+caption_framework/      Stage 2 — caption-generation design spec (FINAL, no code)
+ontology_design/        Stage 3 — domain-ontology design spec (FINAL, no code)
+configs/                pipeline + training configuration (YAML)
+assets/                 authored inputs (templates, label map, instruction banks)
+tests/                  unit / integration / benchmark (mirrors src/ + app/)
+docs/                   developer docs (per-stage usage, ADRs, figures)
+```
+
+Generated outputs (`artifacts/`, `datasets/`, `reports/`, `checkpoints/`, `logs/`,
+`uploads/`, `predictions/`) are gitignored and fully regenerable.
 
 ## Installation
 
-Requires **Python 3.10+** and (for training) **Apple Silicon** with MLX.
+Requires **Python 3.10+**. Training and inference require **Apple Silicon** with MLX.
 
 ```bash
-git clone git@github.com:iAakash1/experimentation.git
-cd experimentation
-
+git clone git@github.com:iAakash1/experimentation.git && cd experimentation
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"          # editable install + dev tooling
-pre-commit install               # enable lint/format/type hooks
+pip install -e ".[dev]"          # package + lint/type/test tooling
+pre-commit install
 ```
 
-Training extras (Apple Silicon only):
+Optional extras: `".[train]"` (mlx-vlm, Apple Silicon), `".[eval]"` (metrics stack;
+see `make install-eval`), plus `pip install -r app/requirements.txt` for the demo.
+
+## Usage
+
+### Build the caption dataset (deterministic, CPU-only)
 
 ```bash
-pip install -e ".[train]"        # mlx, mlx-vlm
+plantdx audit                 # inventory the raw datasets
+plantdx normalize             # canonical datasets/<crop>/processed/
+plantdx ontology              # DKB → typed knowledge graph
+plantdx vocabulary            # controlled vocabulary + symptom lexicon
+plantdx concepts              # per-disease concept models
+plantdx generate              # the validated caption corpus
+plantdx corpus --all          # export to generic/llava/paligemma/blip2/messages
 ```
 
-Evaluation extras — a **separate environment** from `[train]` (see
-[`docs/EVALUATION.md`](docs/EVALUATION.md) for why): matplotlib, scikit-learn,
-scipy, and official reference implementations of BLEU/ROUGE/METEOR/CIDEr/
-BERTScore (nltk, pycocoevalcap, rouge-score, bert-score+torch).
+### Train (QLoRA on Qwen2.5-VL, MLX — Apple Silicon)
 
 ```bash
-make install-eval                # pip install -e ".[eval]" + cache WordNet + BERTScore model, once
+plantdx train --config configs/train/qwen25vl_tomato.yaml --dry-run   # preview plan + command
+plantdx train --config configs/train/qwen25vl_tomato.yaml             # the real run
+plantdx train --config configs/train/qwen25vl_mango.yaml  --crop mango
 ```
 
-## Quick Start
+Same LoRA/optimizer/schedule for both crops; only crop-specific values differ. See
+[`docs/TRAINING.md`](docs/TRAINING.md).
 
-> ⚠️ `audit`, `normalize`, `ontology`, `vocabulary`, `concepts`, `templates`, `generate`,
-> `validate`, `corpus`, `prepare-training`, `train`, `infer`, and `evaluate` are
-> implemented. `dataset` and `qa` still raise `NotImplementedError` until their
-> milestone (M4) lands.
+### Evaluate (base vs. fine-tuned)
 
 ```bash
-plantdx --help                                           # top-level CLI
-plantdx audit             --config configs/config.yaml   # implemented — dataset audit
-plantdx normalize         --config configs/config.yaml   # implemented — dataset normalization
-plantdx ontology          --config configs/config.yaml   # implemented — domain ontology compiler
-plantdx vocabulary        --config configs/config.yaml   # implemented — vocabulary + symptom lexicon
-plantdx concepts          --config configs/config.yaml   # implemented — Caption Concept Model (component A)
-plantdx templates         --config configs/config.yaml   # implemented — Template Engine
-plantdx generate          [--condition ID] [--crop C]    # implemented — build the caption corpus
-plantdx validate          [--condition ID] [--crop C]    # implemented — independent caption validation
-plantdx corpus            [--format F | --all]           # implemented — corpus + dataset exporters
-plantdx dataset build     --config configs/config.yaml   # Milestone 4
-plantdx dataset convert   --model qwen3_vl                # Milestone 4
-plantdx train             --config configs/train/qwen25vl_tomato.yaml [--crop tomato|mango]  # implemented
-plantdx evaluate          --stage all [--adapter checkpoints/<run>/] [--dataset DIR]          # implemented
+plantdx evaluate --stage all \
+    --adapter checkpoints/qwen25vl_tomato_qlora \
+    --dataset artifacts/training/qwen25vl_tomato_qlora/dataset
 ```
 
-Programmatic surface (implemented stages):
+Crop is read from the dataset manifest; reports land in `reports/<run>/evaluation/`.
+See [`docs/EVALUATION.md`](docs/EVALUATION.md).
 
-```python
-from plantdx.config import load_config
-from plantdx.ontology.domain import compile_ontology, validate_ontology
-from plantdx.vocabulary.domain import build_vocabulary_result, validate_vocabulary_result
+### Demo
 
-cfg = load_config("configs/config.yaml")
-result = compile_ontology(cfg.paths.knowledge_base["dkb_json"])
-validate_ontology(result)   # fail-closed; raises OntologyValidationError on any rule breach
-
-vocab = build_vocabulary_result(result.ontology)
-validate_vocabulary_result(vocab, result.ontology)   # fail-closed; raises VocabularyValidationError
+```bash
+# Use the interpreter that has a working mlx-vlm stack (absolute path is safest):
+~/miniforge3/envs/vlm/bin/python -m streamlit run streamlit_app.py
 ```
 
-See [`docs/AUDIT.md`](docs/AUDIT.md), [`docs/NORMALIZATION.md`](docs/NORMALIZATION.md),
-[`docs/ONTOLOGY.md`](docs/ONTOLOGY.md), [`docs/VOCABULARY.md`](docs/VOCABULARY.md),
-[`docs/CONCEPTS.md`](docs/CONCEPTS.md), and [`docs/CORPUS.md`](docs/CORPUS.md) for each
-implemented stage's full usage.
+Upload leaf images → grounded diagnosis with a real confidence, adapter verification,
+and the held-out evaluation results, all in-app. See [`docs/DEMO_APP.md`](docs/DEMO_APP.md).
 
-## Datasets
+<!-- Demo recording placeholder: drop a short screen capture at docs/images/demo.gif and it will render here. -->
 
-| Crop | Raw dataset | Raw location | Note |
-|------|-------------|---------------|------|
-| Tomato | Full PlantVillage (all crops; `train/`+`val/` split) | `tomato/raw/PlantVillage/` | ~14k tomato images across 10 classes; the audit engine discovered the raw download is the complete multi-crop PlantVillage, not a pre-filtered tomato subset — see [`docs/AUDIT.md`](docs/AUDIT.md). |
-| Mango | MangoLeafBD (flat layout) | `mango/raw/MangoLeafBD/` | 4k images, 8 classes, 500/class. |
+## Why the captions are trustworthy
 
-Raw datasets are **immutable** (never renamed, moved, or modified) and are treated as ground truth.
-`plantdx normalize` extracts only the relevant classes, canonicalizes their names, and writes a
-crop-independent structure to `datasets/<crop>/processed/<class>/` — see [`docs/NORMALIZATION.md`](docs/NORMALIZATION.md).
-Downstream stages consume the **normalized** datasets, never `raw/` directly.
+Seven invariants are enforced *by construction*, not by review
+([`caption_framework/README.md`](caption_framework/README.md)):
 
-## Models
+1. **Label-only grounding** — captions describe the labeled class, never a pixel guess.
+2. **DKB is the single source of truth** — every fact traces to a cited entry.
+3. **Closed vocabulary** — no free-form term can enter a caption.
+4. **Observability** — only what's visible on a single leaf may be asserted.
+5. **Pest/pathogen register integrity** — a mite isn't given a "lesion", etc.
+6. **Severity honesty** — no per-image severity claim (the source data has none).
+7. **Reproducibility** — fully seeded, content-hashed, byte-for-byte rebuildable.
 
-Target VLMs for QLoRA fine-tuning (via MLX / `mlx-vlm` on Apple M4 Pro, 24 GB). All five converters
-(one per model, plus a generic `mlx_vlm` converter) live in a single module,
-[`dataset/converters.py`](src/plantdx/dataset/converters.py), behind a `CONVERTER_REGISTRY`:
+## Roadmap
 
-| Model | Params | Converter class |
-|-------|--------|-----------|
-| Qwen3-VL-8B-Instruct | 8B | `Qwen3VLConverter` |
-| Qwen2.5-VL-7B-Instruct | 7B | `Qwen2_5VLConverter` |
-| InternVL3-8B | 8B | `InternVL3Converter` |
-| Gemma-3-12B | 12B | `Gemma3Converter` |
+| Milestone | Status |
+|-----------|:------:|
+| Audit · Normalization · Ontology · Vocabulary compilers | ✅ |
+| Concept models · Template engine · Caption corpus · Exporters | ✅ |
+| QLoRA training (Qwen2.5-VL, tomato + mango) | ✅ |
+| Evaluation (base vs. fine-tuned, crop-agnostic) | ✅ |
+| Streamlit demo | ✅ |
+| Image-grounded Instruction Dataset Builder + the other three VLM converters | ⏳ |
 
-All four train on an **identical** canonical caption library and identical image-level splits (a precondition for fair comparison). Model-specific formatting is applied by pure converters at build time.
+Detailed plan: [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
+## Contributing
+
+Contributions welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md), the
+[developer guide](docs/DEVELOPMENT.md), and [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
+All changes must preserve the seven design invariants and pass
+`ruff` / `ruff format --check` / `mypy` / `pytest`.
 
 ## Citation
 
@@ -264,31 +250,5 @@ See [`CITATION.cff`](CITATION.cff) for machine-readable metadata.
 
 ## License
 
-Released under the **Apache License 2.0** — see [`LICENSE`](LICENSE). Apache-2.0 is recommended for this project (permissive, patent grant, industry-standard for ML tooling). Dataset licenses (PlantVillage, MangoLeafBD) are retained by their original authors and are **not** redistributed here.
-
-## Roadmap
-
-| Milestone | Scope | Status |
-|-----------|-------|--------|
-| **M1** | Repository scaffolding: structure, configs, typed APIs, tests, docs | ✅ done |
-| **M2** | Dataset Audit Engine (`plantdx audit`) | ✅ done |
-| **M2.1** | Dataset Normalization Engine (`plantdx normalize`) | ✅ done |
-| **M2.2** | Domain Ontology Compiler (`plantdx ontology`) | ✅ done |
-| **M2b** | Vocabulary + Symptom Lexicon Compiler (`plantdx vocabulary`, a view over the ontology) | ✅ done |
-| **M3** | Caption Concept Model + Template Engine + caption corpus + exporters (disease-level, image-free) | ✅ done |
-| **M4** | Image grounding + Instruction Dataset Builder + splits + per-model VLM converters | ⏳ next |
-| **M5** | QLoRA fine-tuning (MLX) for all four models | ⏳ |
-| **M6** | Evaluation: zero-shot vs fine-tuned; diagnostic confusable-pair split | ⏳ |
-
-Detailed plan: [`docs/ROADMAP.md`](docs/ROADMAP.md).
-
-## Future Work
-
-- Optional per-image **severity annotation** to unlock the (currently gated) severity-conditioned caption mode.
-- Additional crops/diseases by extending the DKB (the single source of truth) and rebuilding the ontology.
-- Human-preference alignment on top of the instruction-tuned checkpoints.
-- Public release of the generated caption library and dataset card.
-
-## Contributing
-
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) and the [developer guide](docs/DEVELOPMENT.md). All contributions must preserve the seven design invariants in [`caption_framework/README.md`](caption_framework/README.md).
+**Apache License 2.0** — see [`LICENSE`](LICENSE). Dataset licenses (PlantVillage,
+MangoLeafBD) are retained by their original authors and are **not** redistributed here.
